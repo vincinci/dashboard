@@ -11,16 +11,27 @@ const Register = () => {
     confirmPassword: '',
     businessName: '',
     businessAddress: '',
-    phoneNumber: ''
+    phoneNumber: '',
+    nationalId: null,
+    businessRegistration: null,
+    legalDeclaration: false
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing
+    const { name, value, type, files, checked } = e.target;
+    
+    if (type === 'file') {
+      setFormData(prev => ({ ...prev, [name]: files[0] }));
+    } else if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+    
+    // Clear error when user makes changes
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -55,6 +66,14 @@ const Register = () => {
       newErrors.businessName = 'Business name is required';
     }
     
+    if (!formData.nationalId) {
+      newErrors.nationalId = 'National ID document is required';
+    }
+    
+    if (!formData.legalDeclaration) {
+      newErrors.legalDeclaration = 'You must declare that you are authorized to operate this business legally';
+    }
+    
     return newErrors;
   };
 
@@ -70,14 +89,41 @@ const Register = () => {
     setLoading(true);
     setErrors({});
 
-    const { confirmPassword, ...registrationData } = formData;
-    const result = await register(registrationData);
-    
-    if (!result.success) {
-      setErrors({ general: result.error });
+    try {
+      // Convert files to base64 for submission
+      const nationalIdBase64 = formData.nationalId ? await fileToBase64(formData.nationalId) : null;
+      const businessRegistrationBase64 = formData.businessRegistration ? await fileToBase64(formData.businessRegistration) : null;
+
+      const { confirmPassword, nationalId, businessRegistration, ...registrationData } = formData;
+      
+      // Add file data and legal declaration
+      const submitData = {
+        ...registrationData,
+        nationalIdDocument: nationalIdBase64,
+        businessRegistrationDocument: businessRegistrationBase64,
+        legalDeclaration: formData.legalDeclaration
+      };
+
+      const result = await register(submitData);
+      
+      if (!result.success) {
+        setErrors({ general: result.error });
+      }
+    } catch (error) {
+      setErrors({ general: 'An error occurred during registration. Please try again.' });
     }
     
     setLoading(false);
+  };
+
+  // Helper function to convert file to base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
   };
 
   return (
@@ -259,6 +305,73 @@ const Register = () => {
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
                   placeholder="+250 700 000 000"
                 />
+              </div>
+            </div>
+
+            {/* National ID Upload */}
+            <div>
+              <label htmlFor="nationalId" className="block text-sm font-medium text-gray-700">
+                National ID Document *
+              </label>
+              <div className="mt-1">
+                <input
+                  id="nationalId"
+                  name="nationalId"
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={handleChange}
+                  className={`appearance-none block w-full px-3 py-2 border ${
+                    errors.nationalId ? 'border-red-300' : 'border-gray-300'
+                  } rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm`}
+                />
+                <p className="mt-1 text-xs text-gray-500">Upload a clear photo or PDF of your National ID</p>
+                {errors.nationalId && (
+                  <p className="mt-2 text-sm text-red-600">{errors.nationalId}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Business Registration Document Upload */}
+            <div>
+              <label htmlFor="businessRegistration" className="block text-sm font-medium text-gray-700">
+                Business Registration Document (Optional)
+              </label>
+              <div className="mt-1">
+                <input
+                  id="businessRegistration"
+                  name="businessRegistration"
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500">Upload your business license or registration certificate</p>
+              </div>
+            </div>
+
+            {/* Legal Declaration Checkbox */}
+            <div>
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    id="legalDeclaration"
+                    name="legalDeclaration"
+                    type="checkbox"
+                    checked={formData.legalDeclaration}
+                    onChange={handleChange}
+                    className={`h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded ${
+                      errors.legalDeclaration ? 'border-red-300' : ''
+                    }`}
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="legalDeclaration" className="text-gray-700">
+                    I declare that I am authorized to operate this business legally *
+                  </label>
+                  {errors.legalDeclaration && (
+                    <p className="mt-1 text-sm text-red-600">{errors.legalDeclaration}</p>
+                  )}
+                </div>
               </div>
             </div>
 

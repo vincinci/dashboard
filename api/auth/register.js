@@ -28,12 +28,17 @@ export default async function handler(req, res) {
       displayName, 
       businessName, 
       businessAddress, 
-      phoneNumber 
+      phoneNumber,
+      nationalIdDocument,
+      businessRegistrationDocument,
+      legalDeclaration
     } = req.body;
 
     // Validate required fields
-    if (!email || !password || !displayName) {
-      return res.status(400).json({ error: 'Email, password, and display name are required' });
+    if (!email || !password || !displayName || !nationalIdDocument || !legalDeclaration) {
+      return res.status(400).json({ 
+        error: 'Email, password, display name, national ID document, and legal declaration are required' 
+      });
     }
 
     // Check if user already exists
@@ -57,7 +62,10 @@ export default async function handler(req, res) {
         displayName,
         businessName: businessName || null,
         businessAddress: businessAddress || null,
-        phoneNumber: phoneNumber || null
+        phoneNumber: phoneNumber || null,
+        nationalIdDocument: nationalIdDocument || null,
+        businessRegistrationDocument: businessRegistrationDocument || null,
+        legalDeclaration: legalDeclaration || false
       }
     });
 

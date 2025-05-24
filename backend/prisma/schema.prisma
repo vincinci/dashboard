@@ -11,17 +11,20 @@ datasource db {
 }
 
 model User {
-  id                    String   @id @default(cuid())
-  email                 String   @unique
-  password              String
-  displayName           String
-  businessName          String?
-  businessAddress       String?
-  phoneNumber           String?
-  resetPasswordToken    String?
-  resetPasswordExpires  DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                          String   @id @default(cuid())
+  email                       String   @unique
+  password                    String
+  displayName                 String
+  businessName                String?
+  businessAddress             String?
+  phoneNumber                 String?
+  nationalIdDocument          String?  // Base64 encoded file data
+  businessRegistrationDocument String? // Base64 encoded file data
+  legalDeclaration            Boolean  @default(false)
+  resetPasswordToken          String?
+  resetPasswordExpires        DateTime?
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
   
   // Relation to products
   products Product[]
