@@ -120,7 +120,7 @@ const Dashboard = () => {
       'ID',
       'Name',
       'Description',
-      'Price',
+      'Price (RWF)',
       'Category',
       'Stock Quantity',
       'SKU',
@@ -195,6 +195,14 @@ const Dashboard = () => {
               <span className="ml-2 text-sm text-yellow-600">Vendor Dashboard</span>
             </div>
             <div className="flex items-center space-x-3">
+              {user?.isAdmin && (
+                <Link 
+                  to="/admin"
+                  className="px-3 py-2 text-sm text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors duration-200 font-medium"
+                >
+                  Admin Panel
+                </Link>
+              )}
               <Link 
                 to="/account"
                 className="px-3 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 font-medium"

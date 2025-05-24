@@ -37,12 +37,27 @@ router.post('/register', async (req, res) => {
       displayName, 
       businessName, 
       businessAddress, 
-      phoneNumber 
+      phoneNumber,
+      nationalIdDocument,
+      businessRegistrationDocument,
+      legalDeclaration
     } = req.body;
 
     // Validate required fields
     if (!email || !password || !displayName) {
       return res.status(400).json({ error: 'Email, password, and display name are required' });
+    }
+
+    if (!businessName) {
+      return res.status(400).json({ error: 'Business name is required' });
+    }
+
+    if (!nationalIdDocument) {
+      return res.status(400).json({ error: 'National ID document is required' });
+    }
+
+    if (!legalDeclaration) {
+      return res.status(400).json({ error: 'Legal declaration is required' });
     }
 
     // Check if user already exists
@@ -66,7 +81,10 @@ router.post('/register', async (req, res) => {
         displayName,
         businessName: businessName || null,
         businessAddress: businessAddress || null,
-        phoneNumber: phoneNumber || null
+        phoneNumber: phoneNumber || null,
+        nationalIdDocument: nationalIdDocument || null,
+        businessRegistrationDocument: businessRegistrationDocument || null,
+        legalDeclaration: legalDeclaration || false
       }
     });
 
@@ -152,6 +170,7 @@ router.get('/me', authenticateToken, async (req, res) => {
         businessName: true,
         businessAddress: true,
         phoneNumber: true,
+        isAdmin: true,
         createdAt: true,
         updatedAt: true
       }
@@ -194,6 +213,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
         businessName: true,
         businessAddress: true,
         phoneNumber: true,
+        isAdmin: true,
         createdAt: true,
         updatedAt: true
       }

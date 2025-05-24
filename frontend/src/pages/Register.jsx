@@ -24,7 +24,30 @@ const Register = () => {
     const { name, value, type, files, checked } = e.target;
     
     if (type === 'file') {
-      setFormData(prev => ({ ...prev, [name]: files[0] }));
+      const file = files[0];
+      if (file) {
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+        if (!allowedTypes.includes(file.type)) {
+          setErrors(prev => ({ 
+            ...prev, 
+            [name]: 'Please upload a JPG, PNG, or PDF file' 
+          }));
+          return;
+        }
+        
+        // Validate file size (max 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+          setErrors(prev => ({ 
+            ...prev, 
+            [name]: 'File size must be less than 10MB' 
+          }));
+          return;
+        }
+        
+        setFormData(prev => ({ ...prev, [name]: file }));
+      }
     } else if (type === 'checkbox') {
       setFormData(prev => ({ ...prev, [name]: checked }));
     } else {
@@ -67,7 +90,7 @@ const Register = () => {
     }
     
     if (!formData.nationalId) {
-      newErrors.nationalId = 'National ID document is required';
+      newErrors.nationalId = 'National ID document is required (JPG, PNG, or PDF)';
     }
     
     if (!formData.legalDeclaration) {
@@ -110,7 +133,14 @@ const Register = () => {
         setErrors({ general: result.error });
       }
     } catch (error) {
-      setErrors({ general: 'An error occurred during registration. Please try again.' });
+      console.error('Registration error:', error);
+      if (error.message && error.message.includes('PayloadTooLargeError')) {
+        setErrors({ general: 'File upload is too large. Please use files smaller than 10MB.' });
+      } else if (error.message && error.message.includes('Network Error')) {
+        setErrors({ general: 'Network error. Please check your connection and try again.' });
+      } else {
+        setErrors({ general: 'Registration failed. Please check your files and try again.' });
+      }
     }
     
     setLoading(false);
@@ -318,13 +348,13 @@ const Register = () => {
                   id="nationalId"
                   name="nationalId"
                   type="file"
-                  accept="image/*,.pdf"
+                  accept="image/jpeg,image/jpg,image/png,application/pdf"
                   onChange={handleChange}
                   className={`appearance-none block w-full px-3 py-2 border ${
                     errors.nationalId ? 'border-red-300' : 'border-gray-300'
                   } rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm`}
                 />
-                <p className="mt-1 text-xs text-gray-500">Upload a clear photo or PDF of your National ID</p>
+                <p className="mt-1 text-xs text-gray-500">Upload JPG, PNG, or PDF (max 10MB)</p>
                 {errors.nationalId && (
                   <p className="mt-2 text-sm text-red-600">{errors.nationalId}</p>
                 )}
@@ -341,11 +371,11 @@ const Register = () => {
                   id="businessRegistration"
                   name="businessRegistration"
                   type="file"
-                  accept="image/*,.pdf"
+                  accept="image/jpeg,image/jpg,image/png,application/pdf"
                   onChange={handleChange}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
                 />
-                <p className="mt-1 text-xs text-gray-500">Upload your business license or registration certificate</p>
+                <p className="mt-1 text-xs text-gray-500">Upload JPG, PNG, or PDF (max 10MB)</p>
               </div>
             </div>
 

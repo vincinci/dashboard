@@ -21,6 +21,7 @@ model User {
   nationalIdDocument          String?  // Base64 encoded file data
   businessRegistrationDocument String? // Base64 encoded file data
   legalDeclaration            Boolean  @default(false)
+  isAdmin                     Boolean  @default(false)  // Admin flag
   resetPasswordToken          String?
   resetPasswordExpires        DateTime?
   createdAt                   DateTime @default(now())
