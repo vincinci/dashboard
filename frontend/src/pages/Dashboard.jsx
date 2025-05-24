@@ -108,6 +108,71 @@ const Dashboard = () => {
     }
   };
 
+  // CSV Export Function
+  const exportToCSV = () => {
+    if (products.length === 0) {
+      showMessage('error', 'No products to export');
+      return;
+    }
+
+    // Define CSV headers
+    const headers = [
+      'ID',
+      'Name',
+      'Description',
+      'Price',
+      'Category',
+      'Stock Quantity',
+      'SKU',
+      'Status',
+      'Images Count',
+      'Created Date',
+      'Updated Date'
+    ];
+
+    // Convert products to CSV format
+    const csvData = products.map(product => [
+      product.id || '',
+      product.name || '',
+      product.description ? product.description.replace(/"/g, '""') : '', // Escape quotes
+      product.price || '0',
+      product.category || '',
+      product.stockQuantity || '0',
+      product.sku || '',
+      product.status || 'active',
+      product.images ? product.images.length : '0',
+      product.createdAt ? new Date(product.createdAt).toLocaleDateString() : '',
+      product.updatedAt ? new Date(product.updatedAt).toLocaleDateString() : ''
+    ]);
+
+    // Create CSV content
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => 
+        row.map(field => 
+          typeof field === 'string' && field.includes(',') 
+            ? `"${field}"` 
+            : field
+        ).join(',')
+      )
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `products_${vendorName}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showMessage('success', `Exported ${products.length} products to CSV`);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -164,17 +229,28 @@ const Dashboard = () => {
                 <span className="font-medium">{PRODUCT_LIMIT}</span> product slots
               </p>
             </div>
-            <button
-              onClick={() => setShowForm(true)}
-              disabled={isLimitReached}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
-                isLimitReached
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'bg-yellow-500 hover:bg-yellow-600 text-white'
-              }`}
-            >
-              {isLimitReached ? 'Product Limit Reached' : '+ Add Product'}
-            </button>
+            <div className="flex items-center space-x-3">
+              {products.length > 0 && (
+                <button
+                  onClick={exportToCSV}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
+                  title="Export all products to CSV"
+                >
+                  📊 Export CSV
+                </button>
+              )}
+              <button
+                onClick={() => setShowForm(true)}
+                disabled={isLimitReached}
+                className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
+                  isLimitReached
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                }`}
+              >
+                {isLimitReached ? 'Product Limit Reached' : '+ Add Product'}
+              </button>
+            </div>
           </div>
           
           {/* Progress Bar */}
@@ -209,11 +285,24 @@ const Dashboard = () => {
         <div>
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-gray-800">Your Products</h3>
-            {products.length > 0 && (
-              <span className="text-sm text-yellow-600">
-                {products.length} product{products.length !== 1 ? 's' : ''}
-              </span>
-            )}
+            <div className="flex items-center space-x-3">
+              {products.length > 0 && (
+                <>
+                  <button
+                    onClick={exportToCSV}
+                    className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
+                  >
+                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export CSV
+                  </button>
+                  <span className="text-sm text-yellow-600">
+                    {products.length} product{products.length !== 1 ? 's' : ''}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
 
           {products.length === 0 ? (
