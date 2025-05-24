@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import Logo from '../components/Logo';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
 
 const Account = () => {
   const { user, updateUser, logout } = useAuth();

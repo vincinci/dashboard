@@ -11,7 +11,7 @@ export const useAuth = () => {
   return context;
 };
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);

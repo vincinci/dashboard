@@ -6,7 +6,7 @@ import ProductCard from '../components/ProductCard';
 import ProductForm from '../components/ProductForm';
 import Logo from '../components/Logo';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
 
 const Dashboard = () => {
   const [products, setProducts] = useState([]);
