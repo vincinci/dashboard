@@ -11,12 +11,21 @@ const app = express();
 const prisma = new PrismaClient();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://dashboard-i9oo5wloh-fasts-projects-5b1e7db1.vercel.app']
+    : ['http://localhost:3000'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Debug middleware
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`, req.body);
+  console.log(`${req.method} ${req.path}`, { 
+    body: req.body,
+    query: req.query,
+    params: req.params
+  });
   next();
 });
 
@@ -166,7 +175,8 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     env: {
       hasJwtSecret: !!process.env.JWT_SECRET,
-      hasDatabaseUrl: !!process.env.DATABASE_URL
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      nodeEnv: process.env.NODE_ENV
     }
   });
 });
@@ -177,4 +187,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something broke!', details: err.message });
 });
 
-module.exports = app; 
+// Export the Express API
+module.exports = app;
+
+// Handle serverless function
+module.exports.default = app; 
