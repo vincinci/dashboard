@@ -1,16 +1,12 @@
 {
   "framework": "create-react-app",
-  "buildCommand": "npm run build",
-  "devCommand": "npm start",
-  "installCommand": "npm install",
-  "outputDirectory": "build",
   "rewrites": [
-    {
+    { 
       "source": "/api/:path*",
       "destination": "https://iwanyu-api.onrender.com/api/:path*"
     },
-    {
-      "source": "/(.*)",
+    { 
+      "source": "/(.*)", 
       "destination": "/index.html"
     }
   ]
