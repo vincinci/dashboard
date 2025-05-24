@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/backend/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/$1"
+    }
+  ],
+  "buildCommand": "cd frontend && npm install && npm run build && cd ../backend && npx prisma generate",
+  "outputDirectory": "frontend/build",
+  "installCommand": "npm install --prefix frontend && npm install --prefix backend",
+  "framework": "create-react-app"
+} 
