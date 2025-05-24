@@ -10,8 +10,8 @@
       "destination": "https://iwanyu-api.onrender.com/api/:path*"
     },
     {
-      "source": "/:path*",
-      "destination": "/"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 } 

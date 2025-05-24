@@ -10,7 +10,7 @@ import AdminRoute from './components/AdminRoute';
 
 function App() {
   return (
-    <Router basename="/">
+    <Router>
       <AuthProvider>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
