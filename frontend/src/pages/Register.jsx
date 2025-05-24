@@ -297,9 +297,9 @@ const Register = () => {
             <div className="mt-4 text-center">
               <p className="text-xs text-gray-600">
                 By creating an account, you agree to our{' '}
-                <a href="#" className="text-yellow-600 hover:text-yellow-500">Terms of Service</a>
+                <button type="button" className="text-yellow-600 hover:text-yellow-500 underline bg-transparent border-none cursor-pointer">Terms of Service</button>
                 {' '}and{' '}
-                <a href="#" className="text-yellow-600 hover:text-yellow-500">Privacy Policy</a>
+                <button type="button" className="text-yellow-600 hover:text-yellow-500 underline bg-transparent border-none cursor-pointer">Privacy Policy</button>
               </p>
             </div>
           </div>
