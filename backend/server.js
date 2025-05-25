@@ -12,12 +12,29 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
+// CORS Configuration
+const allowedOrigins = {
+  production: [
+    'https://dashboard-six-livid-91.vercel.app',
+    'https://iwanyu-backend.onrender.com',
+    process.env.CORS_ORIGIN
+  ].filter(Boolean),
+  development: ['http://localhost:3000']
+};
+
 // Middleware
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://dashboard-six-livid-91.vercel.app'] 
-    : ['http://localhost:3000'],
-  credentials: true
+  origin: function(origin, callback) {
+    const origins = allowedOrigins[process.env.NODE_ENV || 'development'];
+    if (!origin || origins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 
@@ -57,13 +74,11 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Only start the server if we're not in Vercel
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📱 API available at http://localhost:${PORT}`);
-  });
-}
+// Start the server
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📱 API available at http://localhost:${PORT}`);
+});
 
-// Export the app for Vercel
+// Export the app
 module.exports = app; 

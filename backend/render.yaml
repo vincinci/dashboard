@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: iwanyu-backend
+    env: node
+    region: ohio
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    healthCheckTimeout: 300
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: BLOB_READ_WRITE_TOKEN
+        sync: false
+      - key: PGHOST
+        sync: false
+      - key: PGHOST_UNPOOLED
+        sync: false
+      - key: PGUSER
+        sync: false
+      - key: PGDATABASE
+        sync: false
+      - key: PGPASSWORD
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://dashboard-six-livid-91.vercel.app
+    autoDeploy: true 
