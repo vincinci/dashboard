@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const sharp = require('sharp');
 
 const router = express.Router();
 
@@ -11,18 +12,8 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename with timestamp
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const extension = path.extname(file.originalname);
-    cb(null, 'product-' + uniqueSuffix + extension);
-  }
-});
+// Configure multer for memory storage (temporary)
+const storage = multer.memoryStorage();
 
 // File filter to only allow images
 const fileFilter = (req, file, cb) => {
@@ -39,12 +30,12 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit (we'll compress it)
     files: 5 // Maximum 5 files per upload
   }
 });
 
-// Middleware to verify JWT token (reuse from auth.js)
+// Middleware to verify JWT token
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -65,17 +56,42 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Helper function to process image with sharp
+async function processImage(buffer, filename) {
+  const outputPath = path.join(uploadsDir, filename);
+  
+  try {
+    // Process image with sharp
+    await sharp(buffer)
+      .resize(800, 800, { // Max dimensions
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .jpeg({ quality: 80 }) // Convert to JPEG with 80% quality
+      .toFile(outputPath);
+    
+    return `/uploads/${filename}`;
+  } catch (error) {
+    console.error('Image processing error:', error);
+    throw error;
+  }
+}
+
 // POST /api/upload/images - Upload product images
-router.post('/images', authenticateToken, upload.array('images', 5), (req, res) => {
+router.post('/images', authenticateToken, upload.array('images', 5), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'No images uploaded' });
     }
 
-    // Generate URLs for uploaded files
-    const imageUrls = req.files.map(file => {
-      return `/uploads/${file.filename}`;
+    // Process all images in parallel
+    const imagePromises = req.files.map(file => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const filename = `product-${uniqueSuffix}.jpg`; // Always save as JPG after processing
+      return processImage(file.buffer, filename);
     });
+
+    const imageUrls = await Promise.all(imagePromises);
 
     res.json({
       message: 'Images uploaded successfully',

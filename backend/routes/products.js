@@ -1,17 +1,31 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
+const NodeCache = require('node-cache');
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Initialize cache with 5 minutes TTL
+const cache = new NodeCache({ stdTTL: 300 });
+
 const PRODUCT_LIMIT = 10;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+// Rate limiting configuration
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+
+// Apply rate limiting to all routes
+router.use(limiter);
 
 // Middleware to authenticate JWT token
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
@@ -26,17 +40,54 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// GET /api/products → Get authenticated user's products
+// Helper function to get cache key
+function getCacheKey(userId, page, limit) {
+  return `products_${userId}_${page}_${limit}`;
+}
+
+// GET /api/products → Get authenticated user's products with pagination
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const vendorId = req.user.userId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    const products = await prisma.product.findMany({
-      where: { vendorId },
-      orderBy: { createdAt: 'desc' }
+    // Check cache first
+    const cacheKey = getCacheKey(vendorId, page, limit);
+    const cachedData = cache.get(cacheKey);
+    
+    if (cachedData) {
+      return res.json(cachedData);
+    }
+
+    // Get total count for pagination
+    const totalCount = await prisma.product.count({
+      where: { vendorId }
     });
 
-    res.json(products);
+    // Get paginated products
+    const products = await prisma.product.findMany({
+      where: { vendorId },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
+    });
+
+    const response = {
+      products,
+      pagination: {
+        total: totalCount,
+        pages: Math.ceil(totalCount / limit),
+        currentPage: page,
+        limit
+      }
+    };
+
+    // Store in cache
+    cache.set(cacheKey, response);
+
+    res.json(response);
   } catch (error) {
     console.error('Error fetching products:', error);
     res.status(500).json({ error: 'Failed to fetch products' });
@@ -75,6 +126,14 @@ router.post('/', authenticateToken, async (req, res) => {
         images: images || [],
         delivery,
         pickup: pickup || null
+      }
+    });
+
+    // Clear cache for this vendor
+    const cachePattern = new RegExp(`^products_${vendorId}_.*`);
+    cache.keys().forEach(key => {
+      if (cachePattern.test(key)) {
+        cache.del(key);
       }
     });
 
@@ -119,6 +178,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
       }
     });
 
+    // Clear cache for this vendor
+    const cachePattern = new RegExp(`^products_${vendorId}_.*`);
+    cache.keys().forEach(key => {
+      if (cachePattern.test(key)) {
+        cache.del(key);
+      }
+    });
+
     res.json(updatedProduct);
   } catch (error) {
     console.error('Error updating product:', error);
@@ -147,6 +214,14 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     // Delete product
     await prisma.product.delete({
       where: { id }
+    });
+
+    // Clear cache for this vendor
+    const cachePattern = new RegExp(`^products_${vendorId}_.*`);
+    cache.keys().forEach(key => {
+      if (cachePattern.test(key)) {
+        cache.del(key);
+      }
     });
 
     res.json({ message: 'Product deleted successfully' });

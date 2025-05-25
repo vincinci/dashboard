@@ -15,16 +15,28 @@ const Dashboard = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    total: 0,
+    limit: 10
+  });
   
   const { user, logout } = useAuth();
   const vendorName = user?.displayName || 'Vendor';
   const PRODUCT_LIMIT = 10;
 
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (page = 1) => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/products`);
-      setProducts(response.data);
+      const response = await axios.get(`${API_BASE_URL}/products?page=${page}&limit=${pagination.limit}`);
+      setProducts(response.data.products);
+      setPagination({
+        currentPage: response.data.pagination.currentPage,
+        totalPages: response.data.pagination.pages,
+        total: response.data.pagination.total,
+        limit: response.data.pagination.limit
+      });
     } catch (error) {
       console.error('Error fetching products:', error);
       if (error.response?.status === 401) {
@@ -35,7 +47,7 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [logout]);
+  }, [logout, pagination.limit]);
 
   useEffect(() => {
     fetchProducts();
@@ -106,6 +118,12 @@ const Dashboard = () => {
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       logout();
+    }
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      fetchProducts(newPage);
     }
   };
 
@@ -251,9 +269,16 @@ const Dashboard = () => {
               Export to CSV
             </button>
           </div>
-          <p className="text-sm text-gray-500 w-full sm:w-auto text-center sm:text-right">
-            Welcome, {vendorName}!
-          </p>
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <p className="text-sm text-gray-500">
+              Welcome, {vendorName}!
+            </p>
+            {pagination.total > 0 && (
+              <p className="text-sm text-gray-500">
+                Showing {products.length} of {pagination.total} products
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Products Grid */}
@@ -268,9 +293,52 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {products.length === 0 && (
+        {products.length === 0 && !loading && (
           <div className="text-center py-12">
             <p className="text-gray-500">No products yet. Start by adding a new product!</p>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="mt-8 flex justify-center">
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+              <button
+                onClick={() => handlePageChange(pagination.currentPage - 1)}
+                disabled={pagination.currentPage === 1}
+                className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
+                  pagination.currentPage === 1
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : 'text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                Previous
+              </button>
+              {[...Array(pagination.totalPages)].map((_, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => handlePageChange(i + 1)}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                    pagination.currentPage === i + 1
+                      ? 'z-10 bg-yellow-50 border-yellow-500 text-yellow-600'
+                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              <button
+                onClick={() => handlePageChange(pagination.currentPage + 1)}
+                disabled={pagination.currentPage === pagination.totalPages}
+                className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
+                  pagination.currentPage === pagination.totalPages
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : 'text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                Next
+              </button>
+            </nav>
           </div>
         )}
       </main>
