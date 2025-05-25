@@ -14,6 +14,7 @@ const Dashboard = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const { user, logout } = useAuth();
   const vendorName = user?.displayName || 'Vendor';
@@ -187,37 +188,38 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <Logo size="default" />
-              <span className="ml-2 text-sm text-yellow-600">Vendor Dashboard</span>
+          <div className="flex flex-col sm:flex-row items-center justify-between py-4 sm:h-16">
+            <div className="flex items-center w-full sm:w-auto justify-between">
+              <div className="flex items-center">
+                <Logo size="default" />
+                <span className="ml-2 text-sm text-yellow-600 hidden sm:inline">Vendor Dashboard</span>
+              </div>
+              <button
+                className="sm:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} sm:flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto mt-4 sm:mt-0`}>
               {user?.isAdmin && (
                 <Link 
                   to="/admin"
-                  className="px-3 py-2 text-sm text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors duration-200 font-medium"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 w-full sm:w-auto justify-center"
                 >
                   Admin Panel
                 </Link>
               )}
-              <Link 
-                to="/account"
-                className="px-3 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 font-medium"
-              >
-                Account Settings
-              </Link>
               <button
                 onClick={handleLogout}
-                className="px-3 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 font-medium"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 w-full sm:w-auto justify-center"
               >
                 Logout
               </button>
-              <div className="text-sm text-gray-700 bg-yellow-50 px-3 py-2 rounded-lg border border-yellow-200">
-                Welcome, <span className="font-medium text-yellow-700">{vendorName}</span>
-              </div>
             </div>
           </div>
         </div>
@@ -225,136 +227,70 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Dashboard Stats */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                Welcome back, {vendorName}!
-              </h2>
-              <p className="text-gray-700">
-                You've used <span className="font-medium text-yellow-600">{products.length}</span> of{' '}
-                <span className="font-medium">{PRODUCT_LIMIT}</span> product slots
-              </p>
-            </div>
-            <div className="flex items-center space-x-3">
-              {products.length > 0 && (
-                <button
-                  onClick={exportToCSV}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
-                  title="Export all products to CSV"
-                >
-                  📊 Export CSV
-                </button>
-              )}
-              <button
-                onClick={() => setShowForm(true)}
-                disabled={isLimitReached}
-                className={`px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
-                  isLimitReached
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                }`}
-              >
-                {isLimitReached ? 'Product Limit Reached' : '+ Add Product'}
-              </button>
-            </div>
-          </div>
-          
-          {/* Progress Bar */}
-          <div className="mt-4">
-            <div className="flex justify-between text-sm text-gray-700 mb-1">
-              <span>Product Slots Used</span>
-              <span>{products.length}/{PRODUCT_LIMIT}</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  products.length >= PRODUCT_LIMIT ? 'bg-red-500' : 'bg-yellow-500'
-                }`}
-                style={{ width: `${(products.length / PRODUCT_LIMIT) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-
         {/* Message Display */}
         {message.text && (
-          <div className={`mb-6 p-4 rounded-lg ${
-            message.type === 'success' 
-              ? 'bg-green-50 border border-green-200 text-green-800' 
-              : 'bg-red-50 border border-red-200 text-red-800'
-          }`}>
+          <div className={`mb-4 p-4 rounded-md ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
             {message.text}
           </div>
         )}
 
-        {/* Products Grid */}
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-800">Your Products</h3>
-            <div className="flex items-center space-x-3">
-              {products.length > 0 && (
-                <>
-                  <button
-                    onClick={exportToCSV}
-                    className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
-                  >
-                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Export CSV
-                  </button>
-                  <span className="text-sm text-yellow-600">
-                    {products.length} product{products.length !== 1 ? 's' : ''}
-                  </span>
-                </>
-              )}
-            </div>
+        {/* Actions Bar */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+            <button
+              onClick={() => !isLimitReached && setShowForm(true)}
+              disabled={isLimitReached}
+              className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${isLimitReached ? 'bg-gray-400 cursor-not-allowed' : 'bg-yellow-600 hover:bg-yellow-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 w-full sm:w-auto justify-center`}
+            >
+              Add New Product
+            </button>
+            <button
+              onClick={exportToCSV}
+              className="inline-flex items-center px-4 py-2 border border-yellow-600 text-sm font-medium rounded-md text-yellow-600 bg-white hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 w-full sm:w-auto justify-center"
+            >
+              Export to CSV
+            </button>
           </div>
-
-          {products.length === 0 ? (
-            <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-              <div className="mx-auto h-24 w-24 text-yellow-400 mb-4">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="h-full w-full">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
-              <h4 className="text-lg font-medium text-gray-800 mb-2">No products yet</h4>
-              <p className="text-gray-600 mb-6">Get started by adding your first product to the marketplace.</p>
-              <button
-                onClick={() => setShowForm(true)}
-                className="inline-flex items-center px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-medium rounded-lg transition-colors duration-200"
-              >
-                <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Add Your First Product
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.map(product => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onEdit={handleEdit}
-                  onDelete={handleDeleteProduct}
-                />
-              ))}
-            </div>
-          )}
+          <p className="text-sm text-gray-500 w-full sm:w-auto text-center sm:text-right">
+            Welcome, {vendorName}!
+          </p>
         </div>
+
+        {/* Products Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {products.map(product => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              onEdit={() => handleEdit(product)}
+              onDelete={() => handleDeleteProduct(product.id)}
+            />
+          ))}
+        </div>
+
+        {products.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No products yet. Start by adding a new product!</p>
+          </div>
+        )}
       </main>
 
       {/* Product Form Modal */}
       {showForm && (
-        <ProductForm
-          product={editingProduct}
-          onSubmit={editingProduct ? handleEditProduct : handleAddProduct}
-          onCancel={handleCloseForm}
-          isLimitReached={isLimitReached}
-        />
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <ProductForm
+                onSubmit={editingProduct ? handleEditProduct : handleAddProduct}
+                onClose={handleCloseForm}
+                initialData={editingProduct}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
