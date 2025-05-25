@@ -6,11 +6,14 @@ import ProductCard from '../components/ProductCard';
 import ProductForm from '../components/ProductForm';
 import Logo from '../components/Logo';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://iwanyu-backend.onrender.com/api'
+  : 'http://localhost:3001/api';
 
 const Dashboard = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -29,6 +32,7 @@ const Dashboard = () => {
   const fetchProducts = useCallback(async (page = 1) => {
     try {
       setLoading(true);
+      setError(null);
       const response = await axios.get(`${API_BASE_URL}/products?page=${page}&limit=${pagination.limit}`);
       setProducts(response.data.products);
       setPagination({
@@ -42,6 +46,7 @@ const Dashboard = () => {
       if (error.response?.status === 401) {
         logout();
       } else {
+        setError(error.response?.data?.error || 'Failed to fetch products');
         showMessage('error', 'Failed to fetch products');
       }
     } finally {
@@ -198,6 +203,24 @@ const Dashboard = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
           <p className="mt-4 text-gray-700">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 text-xl mb-4">⚠️</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Something went wrong</h3>
+          <p className="text-gray-500 mb-4">{error}</p>
+          <button
+            onClick={() => fetchProducts(pagination.currentPage)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
