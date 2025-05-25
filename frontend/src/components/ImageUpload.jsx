@@ -59,8 +59,15 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
         },
       });
 
-      // Add new image URLs to existing images
-      const newImages = [...images, ...response.data.images];
+      // Add new image URLs to existing images with the correct base URL
+      const newImages = [...images, ...response.data.images.map(url => {
+        // If the URL is already absolute (starts with http or https), use it as is
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+          return url;
+        }
+        // Otherwise, construct the full URL
+        return `${window.location.origin}${url}`;
+      })];
       onChange(newImages);
 
     } catch (error) {
@@ -103,7 +110,10 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
           throw new Error('Authentication token not found');
         }
 
-        const imageUrl = imageToRemove.replace(`${API_BASE_URL.replace('/api', '')}`, '');
+        // Extract the relative path from the full URL
+        const urlObject = new URL(imageToRemove);
+        const imageUrl = urlObject.pathname;
+
         await axios.delete(`${API_BASE_URL}/upload/image`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -112,6 +122,7 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
         });
       } catch (error) {
         console.error('Failed to delete image from server:', error);
+        alert('Failed to delete image. Please try again.');
       }
     }
 
