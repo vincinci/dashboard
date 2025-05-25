@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 // CORS middleware
 const corsMiddleware = cors({
   origin: process.env.NODE_ENV === 'production'
-    ? ['https://dashboard-7jdu5z8p2-fasts-projects-5b1e7db1.vercel.app']
+    ? ['https://dashboard-six-livid-91.vercel.app']
     : ['http://localhost:3000'],
   methods: ['POST', 'OPTIONS'],
   credentials: true,
