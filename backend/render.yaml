@@ -6,8 +6,17 @@ services:
     plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
-    healthCheckPath: /health
+    healthCheckPath: /api/health
     healthCheckTimeout: 300
+    buildFilter:
+      paths:
+        - package.json
+        - package-lock.json
+        - prisma/**
+        - src/**
+        - server.js
+        - routes/**
+        - middleware/**
     envVars:
       - key: NODE_ENV
         value: production
