@@ -2,20 +2,22 @@ import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
   const fileInputRef = useRef(null);
   const { user } = useAuth();
 
   const handleFiles = async (files) => {
     const fileArray = Array.from(files);
+    setError('');
     
     // Check file count limit
     if (images.length + fileArray.length > maxImages) {
-      alert(`Maximum ${maxImages} images allowed. You can add ${maxImages - images.length} more.`);
+      setError(`Maximum ${maxImages} images allowed. You can add ${maxImages - images.length} more.`);
       return;
     }
 
@@ -25,12 +27,12 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
       const maxSize = 5 * 1024 * 1024; // 5MB
 
       if (!validTypes.includes(file.type)) {
-        alert(`${file.name} is not a valid image format. Please use JPEG, PNG, GIF, or WebP.`);
+        setError(`${file.name} is not a valid image format. Please use JPEG, PNG, GIF, or WebP.`);
         return false;
       }
 
       if (file.size > maxSize) {
-        alert(`${file.name} is too large. Maximum file size is 5MB.`);
+        setError(`${file.name} is too large. Maximum file size is 5MB.`);
         return false;
       }
 
@@ -41,38 +43,42 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
 
     try {
       setUploading(true);
-      const formData = new FormData();
-      validFiles.forEach(file => {
-        formData.append('images', file);
-      });
+      setError('');
 
-      // Get the token from localStorage
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Authentication token not found');
+      // Upload files one by one to avoid timeout issues
+      const uploadedUrls = [];
+      for (const file of validFiles) {
+        try {
+          // Get upload URL from backend
+          const token = localStorage.getItem('token');
+          if (!token) {
+            throw new Error('Authentication token not found');
+          }
+
+          const { data: { uploadUrl, imageUrl } } = await axios.get(`${API_BASE_URL}/upload/presigned-url`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+
+          // Upload directly to storage
+          await axios.put(uploadUrl, file, {
+            headers: { 'Content-Type': file.type }
+          });
+
+          uploadedUrls.push(imageUrl);
+        } catch (err) {
+          console.error('Failed to upload file:', file.name, err);
+          setError(`Failed to upload ${file.name}. Please try again.`);
+        }
       }
 
-      const response = await axios.post(`${API_BASE_URL}/upload/images`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${token}`
-        },
-      });
-
-      // Add new image URLs to existing images with the correct base URL
-      const newImages = [...images, ...response.data.images.map(url => {
-        // If the URL is already absolute (starts with http or https), use it as is
-        if (url.startsWith('http://') || url.startsWith('https://')) {
-          return url;
-        }
-        // Otherwise, construct the full URL
-        return `${window.location.origin}${url}`;
-      })];
-      onChange(newImages);
+      if (uploadedUrls.length > 0) {
+        const newImages = [...images, ...uploadedUrls];
+        onChange(newImages);
+      }
 
     } catch (error) {
       console.error('Upload error:', error);
-      alert(error.response?.data?.error || 'Failed to upload images. Please try again.');
+      setError(error.response?.data?.error || 'Failed to upload images. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -205,6 +211,13 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Error message */}
+      {error && (
+        <div className="mt-2 text-sm text-red-600">
+          {error}
         </div>
       )}
 
