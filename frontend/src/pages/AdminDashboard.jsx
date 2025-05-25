@@ -34,7 +34,7 @@ const AdminDashboard = () => {
     fetchStats();
     fetchUsers();
     fetchProducts();
-  }, [user]);
+  }, [user, fetchProducts, fetchStats, fetchUsers]);
 
   const fetchStats = async () => {
     try {
