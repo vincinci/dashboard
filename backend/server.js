@@ -38,19 +38,8 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Root route
-app.get('/', (req, res) => {
-  res.json({ message: 'Iwanyu Vendor Dashboard API is running!' });
-});
-
-// Mount routes with /api prefix
-app.use('/api/auth', authRouter);
-app.use('/api/products', productsRouter);
-app.use('/api/upload', uploadRouter);
-app.use('/api/admin', adminRouter);
-
-// Health check endpoint
-app.get('/health', (req, res) => {
+// Health check endpoint (before API routes)
+app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
@@ -63,21 +52,68 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Error handling
+// Root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Iwanyu Vendor Dashboard API is running!',
+    docs: {
+      health: '/api/health',
+      auth: '/api/auth',
+      products: '/api/products',
+      upload: '/api/upload',
+      admin: '/api/admin'
+    }
+  });
+});
+
+// Mount routes with /api prefix
+app.use('/api/auth', authRouter);
+app.use('/api/products', productsRouter);
+app.use('/api/upload', uploadRouter);
+app.use('/api/admin', adminRouter);
+
+// Error handling for CORS
+app.use((err, req, res, next) => {
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({
+      error: 'CORS Error',
+      message: 'Origin not allowed',
+      allowedOrigins: allowedOrigins[process.env.NODE_ENV || 'development']
+    });
+  }
+  next(err);
+});
+
+// Global error handling
 app.use((err, req, res, next) => {
   console.error('Global error:', err);
-  res.status(500).json({ error: 'Something broke!', details: err.message });
+  res.status(500).json({ 
+    error: 'Something broke!', 
+    message: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
 });
 
 // 404 handler - this should be the last middleware
 app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.originalUrl,
+    availableRoutes: [
+      '/api/health',
+      '/api/auth',
+      '/api/products',
+      '/api/upload',
+      '/api/admin'
+    ]
+  });
 });
 
 // Start the server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📱 API available at http://localhost:${PORT}`);
+  console.log(`🏥 Health check at http://localhost:${PORT}/api/health`);
 });
 
 // Export the app

@@ -18,6 +18,7 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('authToken'));
 
   // Set up axios interceptor for auth token
@@ -29,25 +30,38 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
-  // Check if user is logged in on app load
+  // Check API health and user auth on app load
   useEffect(() => {
-    const checkAuth = async () => {
-      if (token) {
-        try {
-          const response = await axios.get(`${API_BASE_URL}/auth/me`);
-          setUser(response.data);
-        } catch (error) {
-          console.error('Auth check failed:', error);
-          logout();
+    const checkHealth = async () => {
+      try {
+        const healthResponse = await axios.get(`${API_BASE_URL}/health`);
+        console.log('API Health:', healthResponse.data);
+        
+        if (token) {
+          try {
+            const response = await axios.get(`${API_BASE_URL}/auth/me`);
+            setUser(response.data);
+          } catch (error) {
+            console.error('Auth check failed:', error);
+            if (error.response?.status === 401) {
+              logout();
+            }
+          }
         }
+      } catch (error) {
+        console.error('API Health check failed:', error);
+        setError('Unable to connect to the server. Please try again later.');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
-    checkAuth();
+    
+    checkHealth();
   }, [token]);
 
   const login = async (email, password) => {
     try {
+      setError(null);
       const response = await axios.post(`${API_BASE_URL}/auth/login`, {
         email,
         password
@@ -61,9 +75,12 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true };
     } catch (error) {
+      console.error('Login error:', error);
+      const errorMessage = error.response?.data?.error || 'Login failed. Please check your credentials.';
+      setError(errorMessage);
       return { 
         success: false, 
-        error: error.response?.data?.error || 'Login failed' 
+        error: errorMessage
       };
     }
   };
@@ -114,6 +131,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     loading,
+    error,
     login,
     register,
     logout,
