@@ -1,10 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
 
 const authRouter = require('./routes/auth');
 const productsRouter = require('./routes/products');
@@ -17,13 +14,12 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: ['https://dashboard-six-livid-91.vercel.app', 'http://localhost:3000'],
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://dashboard-six-livid-91.vercel.app'] 
+    : ['http://localhost:3000'],
   credentials: true
 }));
 app.use(express.json());
-
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Root route
 app.get('/', (req, res) => {
@@ -44,7 +40,8 @@ app.get('/health', (req, res) => {
     env: {
       hasJwtSecret: !!process.env.JWT_SECRET,
       hasDatabaseUrl: !!process.env.DATABASE_URL,
-      nodeEnv: process.env.NODE_ENV
+      nodeEnv: process.env.NODE_ENV,
+      hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN
     }
   });
 });
@@ -60,8 +57,13 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📱 API available at http://localhost:${PORT}`);
-  console.log(`📁 File uploads available at http://localhost:${PORT}/uploads`);
-}); 
+// Only start the server if we're not in Vercel
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📱 API available at http://localhost:${PORT}`);
+  });
+}
+
+// Export the app for Vercel
+module.exports = app; 
