@@ -1,12 +1,14 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
 
-const ImageUpload = ({ images, onImagesChange, maxImages = 5 }) => {
-  const [uploading, setUploading] = useState(false);
+const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
   const [dragActive, setDragActive] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const { user } = useAuth();
 
   const handleFiles = async (files) => {
     const fileArray = Array.from(files);
@@ -37,23 +39,29 @@ const ImageUpload = ({ images, onImagesChange, maxImages = 5 }) => {
 
     if (validFiles.length === 0) return;
 
-    setUploading(true);
-
     try {
+      setUploading(true);
       const formData = new FormData();
       validFiles.forEach(file => {
         formData.append('images', file);
       });
 
+      // Get the token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
       const response = await axios.post(`${API_BASE_URL}/upload/images`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
         },
       });
 
       // Add new image URLs to existing images
-      const newImages = [...images, ...response.data.images.map(url => `${API_BASE_URL.replace('/api', '')}${url}`)];
-      onImagesChange(newImages);
+      const newImages = [...images, ...response.data.images];
+      onChange(newImages);
 
     } catch (error) {
       console.error('Upload error:', error);
@@ -89,8 +97,17 @@ const ImageUpload = ({ images, onImagesChange, maxImages = 5 }) => {
     // Only delete from server if it's an uploaded file (contains /uploads/)
     if (imageToRemove.includes('/uploads/')) {
       try {
+        // Get the token from localStorage
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('Authentication token not found');
+        }
+
         const imageUrl = imageToRemove.replace(`${API_BASE_URL.replace('/api', '')}`, '');
         await axios.delete(`${API_BASE_URL}/upload/image`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
           data: { imageUrl }
         });
       } catch (error) {
@@ -100,19 +117,7 @@ const ImageUpload = ({ images, onImagesChange, maxImages = 5 }) => {
 
     // Remove from local state
     const newImages = images.filter((_, index) => index !== indexToRemove);
-    onImagesChange(newImages);
-  };
-
-  const handleAddUrl = () => {
-    const imageUrl = prompt('Enter image URL:');
-    if (imageUrl && imageUrl.trim()) {
-      if (images.length >= maxImages) {
-        alert(`Maximum ${maxImages} images allowed.`);
-        return;
-      }
-      const newImages = [...images, imageUrl.trim()];
-      onImagesChange(newImages);
-    }
+    onChange(newImages);
   };
 
   return (
@@ -145,14 +150,15 @@ const ImageUpload = ({ images, onImagesChange, maxImages = 5 }) => {
           </svg>
           <div className="mt-4 flex text-sm text-gray-600">
             <label className="relative cursor-pointer rounded-md font-medium text-yellow-600 hover:text-yellow-500">
-              <span>Upload images</span>
+              <span>{uploading ? 'Uploading...' : 'Upload images'}</span>
               <input
                 ref={fileInputRef}
                 type="file"
                 className="sr-only"
                 accept="image/*"
                 multiple
-                onChange={handleFiles}
+                onChange={(e) => handleFiles(e.target.files)}
+                disabled={uploading}
               />
             </label>
             <p className="pl-1">or drag and drop</p>
