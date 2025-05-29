@@ -7,6 +7,7 @@ const authRouter = require('./routes/auth');
 const productsRouter = require('./routes/products');
 const uploadRouter = require('./routes/upload');
 const adminRouter = require('./routes/admin');
+const healthRouter = require('./routes/health');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -49,18 +50,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Health check endpoint (before API routes)
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    env: {
-      hasJwtSecret: !!process.env.JWT_SECRET,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-      nodeEnv: process.env.NODE_ENV,
-      hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN
-    }
-  });
-});
+app.use('/api/health', healthRouter);
 
 // Root route
 app.get('/', (req, res) => {
