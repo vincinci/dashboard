@@ -19,7 +19,16 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('authToken'));
+  const [token, setToken] = useState(null);
+
+  // Clear any stale data on app start
+  useEffect(() => {
+    // Clear old authentication data
+    const storedToken = localStorage.getItem('authToken');
+    if (storedToken) {
+      setToken(storedToken);
+    }
+  }, []);
 
   // Set up axios interceptor for auth token
   useEffect(() => {
@@ -87,6 +96,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
+      setError(null);
       const response = await axios.post(`${API_BASE_URL}/auth/register`, userData);
       
       const { user: newUser, token: authToken } = response.data;
@@ -97,9 +107,11 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true };
     } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Registration failed';
+      setError(errorMessage);
       return { 
         success: false, 
-        error: error.response?.data?.error || 'Registration failed' 
+        error: errorMessage
       };
     }
   };

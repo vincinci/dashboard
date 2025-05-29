@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -28,23 +28,26 @@ model User {
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt
   
-  // Relation to products
-  products Product[]
+  // Relations
+  products                    Product[]
 }
 
 model Product {
   id          String   @id @default(cuid())
-  vendorId    String
   name        String
-  category    String
   description String
   price       Float
-  quantity    Int
-  images      String[] @default([])
-  delivery    Boolean
-  pickup      String?
+  category    String
+  quantity    Int      @default(0)
+  sku         String?
+  status      String   @default("active")
+  images      String?  // JSON string array of image URLs
+  delivery    Boolean  @default(false)
+  pickup      String?  // Pickup location
+  vendorId    String
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
-  // Relation to user
-  vendor User @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  // Relations
+  vendor      User     @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 } 
