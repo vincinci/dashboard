@@ -38,7 +38,10 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json());
+
+// Increase body size limits for file uploads (documents, images)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Health check endpoint (before API routes)
 app.get('/api/health', (req, res) => {
@@ -89,6 +92,16 @@ app.use((err, req, res, next) => {
 // Global error handling
 app.use((err, req, res, next) => {
   console.error('Global error:', err);
+  
+  // Handle payload too large errors specifically
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: 'File too large',
+      message: 'The uploaded file exceeds the maximum size limit of 50MB',
+      maxSize: '50MB'
+    });
+  }
+  
   res.status(500).json({ 
     error: 'Something broke!', 
     message: err.message,

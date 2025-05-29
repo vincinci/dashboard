@@ -1,21 +1,24 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' 
-  ? 'https://iwanyu-api.onrender.com/api'
-  : 'http://localhost:3001/api');
+import API_CONFIG from '../config/api';
 
 const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
-  const { user } = useAuth();
+  const { isAuthenticated, token } = useAuth();
 
   const handleFiles = async (files) => {
     const fileArray = Array.from(files);
     setError('');
+    
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      setError('You must be logged in to upload images');
+      return;
+    }
     
     // Check file count limit
     if (images.length + fileArray.length > maxImages) {
@@ -26,7 +29,7 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
     // Validate file types and sizes
     const validFiles = fileArray.filter(file => {
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-      const maxSize = 5 * 1024 * 1024; // 5MB
+      const maxSize = 10 * 1024 * 1024; // 10MB
 
       if (!validTypes.includes(file.type)) {
         setError(`${file.name} is not a valid image format. Please use JPEG, PNG, GIF, or WebP.`);
@@ -34,7 +37,7 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
       }
 
       if (file.size > maxSize) {
-        setError(`${file.name} is too large. Maximum file size is 5MB.`);
+        setError(`${file.name} is too large. Maximum file size is 10MB.`);
         return false;
       }
 
@@ -47,29 +50,45 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
       setUploading(true);
       setError('');
 
-      // Upload files one by one to avoid timeout issues
+      // Convert files to base64 and upload
       const uploadedUrls = [];
       for (const file of validFiles) {
         try {
-          // Get upload URL from backend
-          const token = localStorage.getItem('token');
-          if (!token) {
-            throw new Error('Authentication token not found');
+          // Convert file to base64
+          const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          // Get upload token - try context first, then localStorage, then axios
+          const contextToken = token;
+          const tokenFromStorage = localStorage.getItem('authToken');
+          const tokenFromAxios = axios.defaults.headers.common['Authorization']?.replace('Bearer ', '');
+          const finalToken = contextToken || tokenFromStorage || tokenFromAxios;
+          
+          if (!finalToken) {
+            throw new Error('Authentication token not found. Please log in again.');
           }
 
-          const { data: { uploadUrl, imageUrl } } = await axios.get(`${API_BASE_URL}/upload/presigned-url`, {
-            headers: { Authorization: `Bearer ${token}` }
+          // Upload to backend
+          const response = await axios.post(API_CONFIG.getURL('/upload/image'), {
+            image: base64,
+            filename: file.name
+          }, {
+            headers: { 
+              Authorization: `Bearer ${finalToken}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 30000 // Longer timeout for large files
           });
 
-          // Upload directly to storage
-          await axios.put(uploadUrl, file, {
-            headers: { 'Content-Type': file.type }
-          });
-
-          uploadedUrls.push(imageUrl);
+          uploadedUrls.push(response.data.imageUrl);
         } catch (err) {
           console.error('Failed to upload file:', file.name, err);
-          setError(`Failed to upload ${file.name}. Please try again.`);
+          const errorMsg = err.response?.data?.message || err.message;
+          setError(`Failed to upload ${file.name}: ${errorMsg}`);
         }
       }
 
@@ -80,7 +99,10 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
 
     } catch (error) {
       console.error('Upload error:', error);
-      setError(error.response?.data?.error || 'Failed to upload images. Please try again.');
+      const errorMsg = error.code === 'ECONNREFUSED' || error.message.includes('Network Error')
+        ? `Cannot connect to server at ${API_CONFIG.getBaseURL()}`
+        : error.response?.data?.error || 'Failed to upload images. Please try again.';
+      setError(errorMsg);
     } finally {
       setUploading(false);
     }
@@ -113,16 +135,16 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
     if (imageToRemove.includes('/uploads/')) {
       try {
         // Get the token from localStorage
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('authToken') || axios.defaults.headers.common['Authorization']?.replace('Bearer ', '');
         if (!token) {
-          throw new Error('Authentication token not found');
+          throw new Error('Authentication token not found. Please log in again.');
         }
 
         // Extract the relative path from the full URL
         const urlObject = new URL(imageToRemove);
         const imageUrl = urlObject.pathname;
 
-        await axios.delete(`${API_BASE_URL}/upload/image`, {
+        await axios.delete(`${API_CONFIG.getBaseURL()}/upload/image`, {
           headers: {
             'Authorization': `Bearer ${token}`
           },
@@ -182,7 +204,7 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
             </label>
             <p className="pl-1">or drag and drop</p>
           </div>
-          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
         </div>
       </div>
 

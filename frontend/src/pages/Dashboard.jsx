@@ -5,10 +5,7 @@ import axios from 'axios';
 import ProductCard from '../components/ProductCard';
 import ProductForm from '../components/ProductForm';
 import Logo from '../components/Logo';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' 
-  ? 'https://iwanyu-api.onrender.com/api'
-  : 'http://localhost:3001/api');
+import API_CONFIG from '../config/api';
 
 const Dashboard = () => {
   const [products, setProducts] = useState([]);
@@ -33,7 +30,9 @@ const Dashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(`${API_BASE_URL}/products?page=${page}&limit=${pagination.limit}`);
+      const response = await axios.get(API_CONFIG.getURL(`/products?page=${page}&limit=${pagination.limit}`), {
+        timeout: API_CONFIG.TIMEOUT
+      });
       setProducts(response.data.products);
       setPagination({
         currentPage: response.data.pagination.currentPage,
@@ -46,8 +45,11 @@ const Dashboard = () => {
       if (error.response?.status === 401) {
         logout();
       } else {
-        setError(error.response?.data?.error || 'Failed to fetch products');
-        showMessage('error', 'Failed to fetch products');
+        const errorMsg = error.code === 'ECONNREFUSED' || error.message.includes('Network Error')
+          ? `Cannot connect to server at ${API_CONFIG.getBaseURL()}. Please ensure the backend is running.`
+          : error.response?.data?.error || 'Failed to fetch products';
+        setError(errorMsg);
+        showMessage('error', errorMsg);
       }
     } finally {
       setLoading(false);
@@ -65,7 +67,9 @@ const Dashboard = () => {
 
   const handleAddProduct = async (productData) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/products`, productData);
+      const response = await axios.post(API_CONFIG.getURL('/products'), productData, {
+        timeout: API_CONFIG.TIMEOUT
+      });
       setProducts(prev => [response.data, ...prev]);
       setShowForm(false);
       showMessage('success', 'Product added successfully!');
@@ -82,7 +86,9 @@ const Dashboard = () => {
 
   const handleEditProduct = async (productData) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/products/${editingProduct.id}`, productData);
+      const response = await axios.put(API_CONFIG.getURL(`/products/${editingProduct.id}`), productData, {
+        timeout: API_CONFIG.TIMEOUT
+      });
       setProducts(prev => prev.map(p => p.id === editingProduct.id ? response.data : p));
       setEditingProduct(null);
       setShowForm(false);
@@ -99,7 +105,9 @@ const Dashboard = () => {
     }
 
     try {
-      await axios.delete(`${API_BASE_URL}/products/${productId}`);
+      await axios.delete(API_CONFIG.getURL(`/products/${productId}`), {
+        timeout: API_CONFIG.TIMEOUT
+      });
       setProducts(prev => prev.filter(p => p.id !== productId));
       showMessage('success', 'Product deleted successfully!');
     } catch (error) {

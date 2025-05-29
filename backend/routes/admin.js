@@ -44,6 +44,58 @@ const requireAdmin = async (req, res, next) => {
   }
 };
 
+// GET /api/admin/users/:userId/documents - Get user documents for viewing (Admin only)
+router.get('/users/:userId/documents', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        displayName: true,
+        email: true,
+        businessName: true,
+        nationalIdDocument: true,
+        businessRegistrationDocument: true,
+        documentsVerified: true,
+        createdAt: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Return document info with base64 data for display
+    const documents = {
+      nationalId: {
+        exists: !!user.nationalIdDocument,
+        data: user.nationalIdDocument || null
+      },
+      businessRegistration: {
+        exists: !!user.businessRegistrationDocument,
+        data: user.businessRegistrationDocument || null
+      }
+    };
+
+    res.json({ 
+      user: {
+        id: user.id,
+        displayName: user.displayName,
+        email: user.email,
+        businessName: user.businessName,
+        documentsVerified: user.documentsVerified,
+        createdAt: user.createdAt
+      },
+      documents 
+    });
+  } catch (error) {
+    console.error('Error fetching user documents:', error);
+    res.status(500).json({ error: 'Failed to fetch user documents' });
+  }
+});
+
 // GET /api/admin/users - Get all users with their products (Admin only)
 router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
@@ -343,6 +395,154 @@ router.post('/verify-documents', authenticateToken, requireAdmin, async (req, re
       return res.status(404).json({ error: 'User not found' });
     }
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/admin/reject-documents - Reject user documents (Admin only)
+router.post('/reject-documents', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+    
+    // Try to update with documentsVerified field
+    try {
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { documentsVerified: false },
+        select: {
+          id: true,
+          email: true,
+          displayName: true,
+          documentsVerified: true
+        }
+      });
+      res.json({ message: 'Documents rejected successfully', user: updatedUser });
+    } catch (dbError) {
+      // If the field doesn't exist, return a helpful message
+      if (dbError.message.includes('documentsVerified')) {
+        return res.status(500).json({ 
+          error: 'Database schema needs to be updated. Please run migration or deploy to production.' 
+        });
+      }
+      throw dbError;
+    }
+  } catch (error) {
+    console.error('Reject documents error:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/delivery-addresses → Get all users with delivery addresses
+router.get('/delivery-addresses', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        businessAddress: {
+          not: null
+        }
+      },
+      select: {
+        id: true,
+        displayName: true,
+        email: true,
+        phoneNumber: true,
+        businessName: true,
+        businessAddress: true,
+        documentsVerified: true,
+        isAdmin: true,
+        createdAt: true,
+        products: {
+          where: {
+            delivery: true
+          },
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            category: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    const deliveryData = users.map(user => ({
+      ...user,
+      totalDeliveryProducts: user.products.length,
+      hasDeliveryProducts: user.products.length > 0
+    }));
+
+    res.json({
+      success: true,
+      addresses: deliveryData,
+      total: deliveryData.length
+    });
+  } catch (error) {
+    console.error('Error fetching delivery addresses:', error);
+    res.status(500).json({ error: 'Failed to fetch delivery addresses' });
+  }
+});
+
+// DELETE /api/admin/users/:userId - Remove/delete a user (Admin only)
+router.delete('/users/:userId', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Check if user exists and get their info before deletion
+    const userToDelete = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        isAdmin: true,
+        products: {
+          select: { id: true }
+        }
+      }
+    });
+
+    if (!userToDelete) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Prevent deletion of admin users (safety measure)
+    if (userToDelete.isAdmin) {
+      return res.status(403).json({ error: 'Cannot delete admin users' });
+    }
+
+    // Delete the user (this will cascade delete their products due to onDelete: Cascade in schema)
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+
+    res.json({ 
+      message: 'User deleted successfully',
+      deletedUser: {
+        id: userToDelete.id,
+        email: userToDelete.email,
+        displayName: userToDelete.displayName,
+        productsDeleted: userToDelete.products.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Delete user error:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 

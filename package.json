@@ -1,13 +1,26 @@
 {
-  "name": "iwanyu-dashboard",
+  "name": "iwanyu-vendor-dashboard",
   "version": "1.0.0",
-  "private": true,
+  "description": "Vendor dashboard for Iwanyu marketplace",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build",
-    "start": "cd backend && npm start",
-    "dev": "concurrently \"cd frontend && npm start\" \"cd backend && npm run dev\""
+    "dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\"",
+    "frontend:dev": "cd frontend && REACT_APP_API_PORT=3001 REACT_APP_FRONTEND_PORT=3003 npm start",
+    "backend:dev": "cd backend && npm run dev",
+    "frontend:build": "cd frontend && npm run build",
+    "backend:start": "cd backend && npm start",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "clean": "rm -rf node_modules frontend/node_modules backend/node_modules",
+    "setup": "npm run install:all && cd backend && npx prisma generate && npx prisma db push",
+    "db:reset": "cd backend && npx prisma migrate reset --force",
+    "db:seed": "cd backend && node scripts/seed.js",
+    "test:api": "cd backend && npm test",
+    "lint": "cd frontend && npm run lint",
+    "heroku-postbuild": "npm run install:all && npm run frontend:build"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": "18.x"
   }
 } 

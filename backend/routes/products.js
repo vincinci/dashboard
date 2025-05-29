@@ -74,8 +74,14 @@ router.get('/', authenticateToken, async (req, res) => {
       take: limit
     });
 
+    // Parse images from JSON strings to arrays
+    const productsWithParsedImages = products.map(product => ({
+      ...product,
+      images: product.images ? JSON.parse(product.images) : []
+    }));
+
     const response = {
-      products,
+      products: productsWithParsedImages,
       pagination: {
         total: totalCount,
         pages: Math.ceil(totalCount / limit),
@@ -123,11 +129,17 @@ router.post('/', authenticateToken, async (req, res) => {
         description,
         price: parseFloat(price),
         quantity: parseInt(quantity),
-        images: images || [],
+        images: images && images.length > 0 ? JSON.stringify(images) : null,
         delivery,
         pickup: pickup || null
       }
     });
+
+    // Parse images back to array for response
+    const responseProduct = {
+      ...product,
+      images: product.images ? JSON.parse(product.images) : []
+    };
 
     // Clear cache for this vendor
     const cachePattern = new RegExp(`^products_${vendorId}_.*`);
@@ -137,7 +149,7 @@ router.post('/', authenticateToken, async (req, res) => {
       }
     });
 
-    res.status(201).json(product);
+    res.status(201).json(responseProduct);
   } catch (error) {
     console.error('Error creating product:', error);
     res.status(500).json({ error: 'Failed to create product' });
@@ -172,11 +184,17 @@ router.put('/:id', authenticateToken, async (req, res) => {
         description: description || existingProduct.description,
         price: price !== undefined ? parseFloat(price) : existingProduct.price,
         quantity: quantity !== undefined ? parseInt(quantity) : existingProduct.quantity,
-        images: images !== undefined ? images : existingProduct.images,
+        images: images !== undefined ? (images && images.length > 0 ? JSON.stringify(images) : null) : existingProduct.images,
         delivery: delivery !== undefined ? delivery : existingProduct.delivery,
         pickup: pickup !== undefined ? pickup : existingProduct.pickup
       }
     });
+
+    // Parse images back to array for response
+    const responseProduct = {
+      ...updatedProduct,
+      images: updatedProduct.images ? JSON.parse(updatedProduct.images) : []
+    };
 
     // Clear cache for this vendor
     const cachePattern = new RegExp(`^products_${vendorId}_.*`);
@@ -186,7 +204,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       }
     });
 
-    res.json(updatedProduct);
+    res.json(responseProduct);
   } catch (error) {
     console.error('Error updating product:', error);
     res.status(500).json({ error: 'Failed to update product' });

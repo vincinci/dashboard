@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import API_CONFIG from '../config/api';
 
 const AuthContext = createContext();
 
@@ -10,10 +11,6 @@ export const useAuth = () => {
   }
   return context;
 };
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' 
-  ? 'https://iwanyu-api.onrender.com/api'
-  : 'http://localhost:3001/api');
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -43,12 +40,16 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const healthResponse = await axios.get(`${API_BASE_URL}/health`);
+        const healthResponse = await axios.get(API_CONFIG.getURL('/health'), {
+          timeout: API_CONFIG.TIMEOUT
+        });
         console.log('API Health:', healthResponse.data);
         
         if (token) {
           try {
-            const response = await axios.get(`${API_BASE_URL}/auth/me`);
+            const response = await axios.get(API_CONFIG.getURL('/auth/me'), {
+              timeout: API_CONFIG.TIMEOUT
+            });
             setUser(response.data);
           } catch (error) {
             console.error('Auth check failed:', error);
@@ -59,7 +60,7 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('API Health check failed:', error);
-        setError('Unable to connect to the server. Please try again later.');
+        setError(`Unable to connect to server at ${API_CONFIG.getBaseURL()}. Please ensure the backend is running.`);
       } finally {
         setLoading(false);
       }
@@ -71,9 +72,12 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setError(null);
-      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+      const response = await axios.post(API_CONFIG.getURL('/auth/login'), {
         email,
         password
+      }, {
+        timeout: API_CONFIG.TIMEOUT,
+        headers: API_CONFIG.DEFAULT_HEADERS
       });
 
       const { user: userData, token: authToken } = response.data;
@@ -85,7 +89,14 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
-      const errorMessage = error.response?.data?.error || 'Login failed. Please check your credentials.';
+      let errorMessage = 'Login failed. Please check your credentials.';
+      
+      if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+        errorMessage = `Cannot connect to server at ${API_CONFIG.getBaseURL()}. Please ensure the backend is running.`;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      
       setError(errorMessage);
       return { 
         success: false, 
@@ -97,7 +108,10 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       setError(null);
-      const response = await axios.post(`${API_BASE_URL}/auth/register`, userData);
+      const response = await axios.post(API_CONFIG.getURL('/auth/register'), userData, {
+        timeout: API_CONFIG.TIMEOUT,
+        headers: API_CONFIG.DEFAULT_HEADERS
+      });
       
       const { user: newUser, token: authToken } = response.data;
       
@@ -107,7 +121,14 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true };
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Registration failed';
+      let errorMessage = 'Registration failed';
+      
+      if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+        errorMessage = `Cannot connect to server at ${API_CONFIG.getBaseURL()}. Please ensure the backend is running.`;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      
       setError(errorMessage);
       return { 
         success: false, 
@@ -125,7 +146,9 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (profileData) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/auth/profile`, profileData);
+      const response = await axios.put(API_CONFIG.getURL('/auth/profile'), profileData, {
+        timeout: API_CONFIG.TIMEOUT
+      });
       setUser(response.data);
       return { success: true };
     } catch (error) {
@@ -142,6 +165,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    token,
     loading,
     error,
     login,
@@ -149,7 +173,8 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateProfile,
     updateUser,
-    isAuthenticated: !!user
+    isAuthenticated: !!(user || token),
+    apiConfig: API_CONFIG
   };
 
   return (
