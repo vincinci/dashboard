@@ -59,6 +59,7 @@ router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
         businessRegistrationDocument: true,
         legalDeclaration: true,
         isAdmin: true,
+        documentsVerified: true,
         createdAt: true,
         updatedAt: true,
         products: {
@@ -66,12 +67,8 @@ router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
             id: true,
             name: true,
             category: true,
-            description: true,
             price: true,
-            quantity: true,
-            delivery: true,
-            pickup: true,
-            createdAt: true
+            status: true
           }
         }
       },
@@ -80,23 +77,18 @@ router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
       }
     });
 
-    // Calculate total products per user and handle documentsVerified field
+    // Add computed fields for each user
     const usersWithStats = users.map(user => ({
       ...user,
-      totalProducts: user.products.length,
+      totalProducts: user.products?.length || 0,
       hasNationalId: !!user.nationalIdDocument,
       hasBusinessRegistration: !!user.businessRegistrationDocument,
       documentsVerified: user.documentsVerified || false
     }));
 
-    res.json({
-      users: usersWithStats,
-      total: users.length,
-      totalProducts: users.reduce((sum, user) => sum + user.products.length, 0)
-    });
-
+    res.json({ users: usersWithStats });
   } catch (error) {
-    console.error('Get users error:', error);
+    console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

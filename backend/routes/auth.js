@@ -84,7 +84,9 @@ router.post('/register', async (req, res) => {
         phoneNumber: phoneNumber || null,
         nationalIdDocument: nationalIdDocument || null,
         businessRegistrationDocument: businessRegistrationDocument || null,
-        legalDeclaration: legalDeclaration || false
+        legalDeclaration: legalDeclaration || false,
+        documentsVerified: false,
+        isAdmin: false
       }
     });
 
