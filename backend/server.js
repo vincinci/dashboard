@@ -16,6 +16,8 @@ const PORT = process.env.PORT || 3001;
 const allowedOrigins = {
   production: [
     'https://dashboard-six-livid-91.vercel.app',
+    'https://dashboard-9apwy0d4h-fasts-projects-5b1e7db1.vercel.app',
+    'https://seller.iwanyustore.store',
     'https://iwanyu-backend.onrender.com',
     process.env.CORS_ORIGIN
   ].filter(Boolean),
