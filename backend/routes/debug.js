@@ -181,4 +181,42 @@ router.get('/raw-user/:email', async (req, res) => {
   }
 });
 
+// GET /api/debug/fix-schema - Add missing columns
+router.get('/fix-schema', async (req, res) => {
+  try {
+    console.log('Fixing database schema...');
+    
+    // Add missing documentsVerified column
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "User" 
+      ADD COLUMN IF NOT EXISTS "documentsVerified" BOOLEAN NOT NULL DEFAULT false;
+    `);
+    
+    console.log('✅ Added documentsVerified column');
+    
+    // Verify the schema is now correct
+    const columns = await prisma.$queryRaw`
+      SELECT column_name, data_type, is_nullable 
+      FROM information_schema.columns 
+      WHERE table_name = 'User' 
+      ORDER BY ordinal_position;
+    `;
+    
+    res.json({
+      status: 'success',
+      message: 'Schema fixed successfully',
+      columns: columns
+    });
+    
+  } catch (error) {
+    console.error('❌ Schema fix error:', error);
+    
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      code: error.code
+    });
+  }
+});
+
 module.exports = router; 
