@@ -20,6 +20,9 @@ const allowedOrigins = {
     'https://dashboard-six-livid-91.vercel.app',
     'https://dashboard-9apwy0d4h-fasts-projects-5b1e7db1.vercel.app',
     'https://dashboard-kj3lfkldu-fasts-projects-5b1e7db1.vercel.app',
+    'https://dashboard-vincincis-projects.vercel.app',
+    'https://dashboard-git-main-vincincis-projects.vercel.app',
+    'https://dashboard-vincinci.vercel.app',
     'https://seller.iwanyustore.store',
     'https://iwanyu-backend.onrender.com',
     process.env.CORS_ORIGIN
@@ -33,11 +36,17 @@ app.use(cors({
     const origins = allowedOrigins[process.env.NODE_ENV || 'development'];
     
     // Allow all Vercel deployment URLs for this project in production
-    const isVercelURL = origin && origin.includes('fasts-projects-5b1e7db1.vercel.app');
+    const isVercelURL = origin && (
+      origin.includes('fasts-projects-5b1e7db1.vercel.app') ||
+      origin.includes('vincincis-projects.vercel.app') ||
+      origin.includes('vincinci.vercel.app') ||
+      origin.includes('dashboard') && origin.includes('vercel.app')
+    );
     
     if (!origin || origins.includes(origin) || isVercelURL) {
       callback(null, true);
     } else {
+      console.warn('CORS rejected origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },

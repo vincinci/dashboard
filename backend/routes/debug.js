@@ -253,4 +253,54 @@ router.get('/make-admin', async (req, res) => {
   }
 });
 
+// GET /api/debug/test-products - Test products endpoint without auth
+router.get('/test-products', async (req, res) => {
+  try {
+    console.log('Testing products endpoint...');
+    
+    // Get all products count
+    const totalProducts = await prisma.product.count();
+    console.log(`Total products in database: ${totalProducts}`);
+    
+    // Get first few products
+    const products = await prisma.product.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        vendor: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+            businessName: true
+          }
+        }
+      }
+    });
+    
+    console.log(`Found ${products.length} products`);
+    
+    res.json({
+      status: 'success',
+      totalProducts,
+      sampleProducts: products.map(p => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        price: p.price,
+        vendor: p.vendor
+      }))
+    });
+    
+  } catch (error) {
+    console.error('❌ Test products error:', error);
+    
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      code: error.code
+    });
+  }
+});
+
 module.exports = router; 
