@@ -18,7 +18,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
 
   const categories = [
     'Electronics',
-    'Clothing',
+    'Clothing Collection',
     'Food & Beverages',
     'Home & Garden',
     'Beauty & Health',
@@ -27,7 +27,8 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
     'Toys & Games',
     'Automotive',
     'Services',
-    'Other'
+    'Smartphones',
+    'Laptops'
   ];
 
   useEffect(() => {
