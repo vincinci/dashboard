@@ -6,12 +6,12 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id                          String   @id @default(cuid())
+  id                          String   @id @default(uuid())
   email                       String   @unique
   password                    String
   displayName                 String
@@ -33,7 +33,7 @@ model User {
 }
 
 model Product {
-  id          String   @id @default(cuid())
+  id          String   @id @default(uuid())
   name        String
   description String
   price       Float
