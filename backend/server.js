@@ -21,7 +21,7 @@ const allowedOrigins = {
     'https://iwanyu-backend.onrender.com',
     process.env.CORS_ORIGIN
   ].filter(Boolean),
-  development: ['http://localhost:3000']
+  development: ['http://localhost:3000', 'http://localhost:3003']
 };
 
 // Middleware
