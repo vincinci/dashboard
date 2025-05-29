@@ -219,4 +219,38 @@ router.get('/fix-schema', async (req, res) => {
   }
 });
 
+// GET /api/debug/make-admin - Update admin user to have admin privileges
+router.get('/make-admin', async (req, res) => {
+  try {
+    console.log('🔄 Updating admin@iwanyu.com to have admin privileges...');
+    
+    const updatedUser = await prisma.user.update({
+      where: { email: 'admin@iwanyu.com' },
+      data: { 
+        isAdmin: true,
+        documentsVerified: true 
+      }
+    });
+    
+    res.json({
+      status: 'success',
+      message: 'Admin user updated successfully',
+      admin: {
+        email: updatedUser.email,
+        isAdmin: updatedUser.isAdmin,
+        documentsVerified: updatedUser.documentsVerified
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Admin fix failed:', error);
+    
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      code: error.code
+    });
+  }
+});
+
 module.exports = router; 
