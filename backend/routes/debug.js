@@ -181,35 +181,40 @@ router.get('/raw-user/:email', async (req, res) => {
   }
 });
 
-// GET /api/debug/fix-schema - Add missing columns
+// GET /api/debug/fix-schema - Fix database schema sync issues
 router.get('/fix-schema', async (req, res) => {
   try {
-    console.log('Fixing database schema...');
+    console.log('🔄 Checking and fixing database schema...');
     
-    // Add missing documentsVerified column
-    await prisma.$executeRawUnsafe(`
-      ALTER TABLE "User" 
-      ADD COLUMN IF NOT EXISTS "documentsVerified" BOOLEAN NOT NULL DEFAULT false;
-    `);
+    // Try to add the sku column if it doesn't exist
+    try {
+      await prisma.$executeRaw`ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "sku" TEXT`;
+      console.log('✅ Added sku column to Product table');
+    } catch (error) {
+      console.log('ℹ️ SKU column might already exist:', error.message);
+    }
     
-    console.log('✅ Added documentsVerified column');
+    // Try to add the status column if it doesn't exist
+    try {
+      await prisma.$executeRaw`ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'active'`;
+      console.log('✅ Added status column to Product table');
+    } catch (error) {
+      console.log('ℹ️ Status column might already exist:', error.message);
+    }
     
-    // Verify the schema is now correct
-    const columns = await prisma.$queryRaw`
-      SELECT column_name, data_type, is_nullable 
-      FROM information_schema.columns 
-      WHERE table_name = 'User' 
-      ORDER BY ordinal_position;
-    `;
+    // Test the Product table structure
+    const products = await prisma.product.findMany({
+      take: 1
+    });
     
     res.json({
       status: 'success',
-      message: 'Schema fixed successfully',
-      columns: columns
+      message: 'Database schema sync completed',
+      productCount: products.length
     });
     
   } catch (error) {
-    console.error('❌ Schema fix error:', error);
+    console.error('❌ Schema sync failed:', error);
     
     res.status(500).json({
       status: 'error',
