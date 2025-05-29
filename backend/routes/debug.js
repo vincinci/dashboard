@@ -121,4 +121,64 @@ router.get('/create-admin', async (req, res) => {
   }
 });
 
+// GET /api/debug/schema - Check actual database schema
+router.get('/schema', async (req, res) => {
+  try {
+    console.log('Checking database schema...');
+    
+    // Get table information
+    const columns = await prisma.$queryRaw`
+      SELECT column_name, data_type, is_nullable 
+      FROM information_schema.columns 
+      WHERE table_name = 'User' 
+      ORDER BY ordinal_position;
+    `;
+    
+    res.json({
+      status: 'success',
+      table: 'User',
+      columns: columns,
+      message: 'Schema information retrieved successfully'
+    });
+    
+  } catch (error) {
+    console.error('❌ Schema check error:', error);
+    
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      code: error.code
+    });
+  }
+});
+
+// GET /api/debug/raw-user - Test raw user query
+router.get('/raw-user/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    console.log(`Checking for user: ${email}`);
+    
+    // Use raw SQL to avoid Prisma schema mismatch
+    const users = await prisma.$queryRaw`
+      SELECT * FROM "User" WHERE email = ${email};
+    `;
+    
+    res.json({
+      status: 'success',
+      users: users,
+      count: users.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Raw user query error:', error);
+    
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      code: error.code
+    });
+  }
+});
+
 module.exports = router; 
