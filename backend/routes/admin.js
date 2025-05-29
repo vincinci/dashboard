@@ -80,12 +80,13 @@ router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
       }
     });
 
-    // Calculate total products per user
+    // Calculate total products per user and handle documentsVerified field
     const usersWithStats = users.map(user => ({
       ...user,
       totalProducts: user.products.length,
       hasNationalId: !!user.nationalIdDocument,
-      hasBusinessRegistration: !!user.businessRegistrationDocument
+      hasBusinessRegistration: !!user.businessRegistrationDocument,
+      documentsVerified: user.documentsVerified || false
     }));
 
     res.json({
@@ -157,27 +158,27 @@ router.get('/export', authenticateToken, requireAdmin, async (req, res) => {
       }
     });
 
-    // Create CSV headers
+    // Create CSV headers to match the specified format
     const headers = [
-      'Product ID',
-      'Product Name',
-      'Category',
-      'Description',
+      'Title',
+      'Description', 
+      'Product status',
+      'Product Category',
+      'Product Type',
+      'Vendor',
+      'Variant',
+      'SKU',
+      'Weight',
+      'Price',
+      'Default Title',
       'Price (RWF)',
       'Quantity',
       'Delivery Available',
       'Pickup Location',
-      'Product Created Date',
-      'Vendor ID',
+      'Created Date',
       'Vendor Email',
-      'Vendor Display Name',
-      'Business Name',
-      'Business Address',
-      'Phone Number',
-      'Has National ID',
-      'Has Business Registration',
-      'Legal Declaration Accepted',
-      'Vendor Registration Date'
+      'Vendor Phone',
+      'Business Address'
     ];
 
     // Helper function to escape CSV fields
@@ -190,35 +191,35 @@ router.get('/export', authenticateToken, requireAdmin, async (req, res) => {
       return str;
     };
 
-    // Convert products to CSV rows
+    // Convert products to CSV rows with the new format
     const csvRows = products.map(product => [
-      escapeCSV(product.id),
-      escapeCSV(product.name),
-      escapeCSV(product.category),
-      escapeCSV(product.description),
-      escapeCSV(product.price),
-      escapeCSV(product.quantity),
-      escapeCSV(product.delivery ? 'Yes' : 'No'),
-      escapeCSV(product.pickup || ''),
-      escapeCSV(product.createdAt.toISOString()),
-      escapeCSV(product.vendor.id),
-      escapeCSV(product.vendor.email),
-      escapeCSV(product.vendor.displayName),
-      escapeCSV(product.vendor.businessName || ''),
-      escapeCSV(product.vendor.businessAddress || ''),
-      escapeCSV(product.vendor.phoneNumber || ''),
-      escapeCSV(product.vendor.nationalIdDocument ? 'Yes' : 'No'),
-      escapeCSV(product.vendor.businessRegistrationDocument ? 'Yes' : 'No'),
-      escapeCSV(product.vendor.legalDeclaration ? 'Yes' : 'No'),
-      escapeCSV(product.vendor.createdAt.toISOString())
+      escapeCSV(product.name), // Title
+      escapeCSV(product.description), // Description
+      escapeCSV('Active'), // Product status (default to Active)
+      escapeCSV(product.category), // Product Category
+      escapeCSV(product.category), // Product Type (same as category)
+      escapeCSV(product.vendor.businessName || product.vendor.displayName), // Vendor
+      escapeCSV('Default Title'), // Variant (default)
+      escapeCSV(product.id), // SKU (using product ID)
+      escapeCSV(''), // Weight (empty for now)
+      escapeCSV(product.price), // Price (numeric)
+      escapeCSV(product.name), // Default Title (same as product name)
+      escapeCSV(`RF ${product.price}`), // Price in Rwandan Franc format
+      escapeCSV(product.quantity), // Quantity
+      escapeCSV(product.delivery ? 'Yes' : 'No'), // Delivery Available
+      escapeCSV(product.pickup || ''), // Pickup Location
+      escapeCSV(product.createdAt.toISOString().split('T')[0]), // Created Date (YYYY-MM-DD)
+      escapeCSV(product.vendor.email), // Vendor Email
+      escapeCSV(product.vendor.phoneNumber || ''), // Vendor Phone
+      escapeCSV(product.vendor.businessAddress || '') // Business Address
     ]);
 
     // Combine headers and rows
     const csvContent = [headers.join(','), ...csvRows.map(row => row.join(','))].join('\n');
 
     // Set response headers for file download
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `iwanyu_complete_export_${timestamp}.csv`;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+    const filename = `iwanyu_products_export_${timestamp}.csv`;
     
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -310,6 +311,45 @@ router.get('/stats', authenticateToken, requireAdmin, async (req, res) => {
 
   } catch (error) {
     console.error('Get stats error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/admin/verify-documents - Verify user documents (Admin only)
+router.post('/verify-documents', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+    
+    // Try to update with documentsVerified field
+    try {
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { documentsVerified: true },
+        select: {
+          id: true,
+          email: true,
+          displayName: true,
+          documentsVerified: true
+        }
+      });
+      res.json({ message: 'Documents verified successfully', user: updatedUser });
+    } catch (dbError) {
+      // If the field doesn't exist, return a helpful message
+      if (dbError.message.includes('documentsVerified')) {
+        return res.status(500).json({ 
+          error: 'Database schema needs to be updated. Please run migration or deploy to production.' 
+        });
+      }
+      throw dbError;
+    }
+  } catch (error) {
+    console.error('Verify documents error:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'User not found' });
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 });

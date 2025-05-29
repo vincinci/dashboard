@@ -24,18 +24,6 @@ const AdminDashboard = () => {
     }).format(price);
   };
 
-  useEffect(() => {
-    if (user && !user.isAdmin) {
-      // Redirect non-admin users
-      window.location.href = '/dashboard';
-      return;
-    }
-    
-    fetchStats();
-    fetchUsers();
-    fetchProducts();
-  }, [user, fetchProducts, fetchStats, fetchUsers]);
-
   const fetchStats = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/admin/stats`);
@@ -68,6 +56,18 @@ const AdminDashboard = () => {
     }
   };
 
+  useEffect(() => {
+    if (user && !user.isAdmin) {
+      // Redirect non-admin users
+      window.location.href = '/dashboard';
+      return;
+    }
+    
+    fetchStats();
+    fetchUsers();
+    fetchProducts();
+  }, [user, fetchProducts, fetchStats, fetchUsers]);
+
   const handleExport = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/admin/export`, {
@@ -99,6 +99,18 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error('Error promoting user:', error);
       setError('Failed to promote user to admin');
+    }
+  };
+
+  const verifyDocuments = async (userId) => {
+    try {
+      await axios.post(`${API_BASE_URL}/admin/verify-documents`, { userId });
+      fetchUsers(); // Refresh users list
+      setError('');
+      alert('Documents verified successfully!');
+    } catch (error) {
+      console.error('Error verifying documents:', error);
+      setError('Failed to verify documents');
     }
   };
 
@@ -283,6 +295,10 @@ const AdminDashboard = () => {
                             <span className={`inline-flex px-2 py-1 text-xs rounded-full ${user.hasBusinessRegistration ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                               Reg: {user.hasBusinessRegistration ? 'Yes' : 'No'}
                             </span>
+                            <br />
+                            <span className={`inline-flex px-2 py-1 text-xs rounded-full ${user.documentsVerified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              Verified: {user.documentsVerified ? 'Yes' : 'No'}
+                            </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -296,12 +312,21 @@ const AdminDashboard = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {!user.isAdmin && (
-                            <button
-                              onClick={() => makeUserAdmin(user.id)}
-                              className="text-yellow-600 hover:text-yellow-900 text-xs"
-                            >
-                              Make Admin
-                            </button>
+                            <>
+                              <button
+                                onClick={() => makeUserAdmin(user.id)}
+                                className="text-yellow-600 hover:text-yellow-900 text-xs mr-2"
+                              >
+                                Make Admin
+                              </button>
+                              <button
+                                onClick={() => verifyDocuments(user.id)}
+                                className={`text-green-600 hover:text-green-900 text-xs ${user.documentsVerified ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={user.documentsVerified}
+                              >
+                                {user.documentsVerified ? 'Verified' : 'Verify Documents'}
+                              </button>
+                            </>
                           )}
                         </td>
                       </tr>
