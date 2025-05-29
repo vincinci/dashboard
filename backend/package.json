@@ -17,6 +17,7 @@
     "db:reset": "node scripts/reset-db.js",
     "db:fix": "node scripts/quick-fix-schema.js",
     "db:admin": "node scripts/make-admin.js",
+    "db:admin-fix": "node scripts/quick-admin-fix.js",
     "db:migrate": "prisma db push",
     "db:studio": "prisma studio"
   },
