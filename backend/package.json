@@ -13,6 +13,7 @@
     "postinstall": "prisma generate",
     "build": "prisma generate && prisma db push",
     "db:init": "node scripts/init-production-db.js",
+    "db:simple": "node scripts/simple-init.js",
     "db:migrate": "prisma db push",
     "db:studio": "prisma studio"
   },
