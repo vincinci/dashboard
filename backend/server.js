@@ -8,6 +8,7 @@ const productsRouter = require('./routes/products');
 const uploadRouter = require('./routes/upload');
 const adminRouter = require('./routes/admin');
 const healthRouter = require('./routes/health');
+const debugRouter = require('./routes/debug');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -71,6 +72,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/debug', debugRouter);
 
 // Error handling for CORS
 app.use((err, req, res, next) => {
