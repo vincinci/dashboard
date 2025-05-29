@@ -1,5 +1,6 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
+const { Prisma } = require('@prisma/client');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -186,32 +187,50 @@ router.get('/fix-schema', async (req, res) => {
   try {
     console.log('🔄 Checking and fixing database schema...');
     
-    // Try to add the sku column if it doesn't exist
-    try {
-      await prisma.$executeRaw`ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "sku" TEXT`;
-      console.log('✅ Added sku column to Product table');
-    } catch (error) {
-      console.log('ℹ️ SKU column might already exist:', error.message);
+    // Array to track which columns were added
+    const addedColumns = [];
+    
+    // Try to add missing columns one by one
+    const columnsToAdd = [
+      { name: 'sku', type: 'TEXT' },
+      { name: 'status', type: 'TEXT DEFAULT \'active\'' },
+      { name: 'updatedAt', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
+      { name: 'createdAt', type: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' }
+    ];
+    
+    for (const column of columnsToAdd) {
+      try {
+        await prisma.$executeRaw`ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS ${Prisma.raw(`"${column.name}" ${column.type}`)};`;
+        addedColumns.push(column.name);
+        console.log(`✅ Added ${column.name} column to Product table`);
+      } catch (error) {
+        console.log(`ℹ️ ${column.name} column might already exist:`, error.message);
+      }
     }
     
-    // Try to add the status column if it doesn't exist
+    // Test the Product table structure by querying it
     try {
-      await prisma.$executeRaw`ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'active'`;
-      console.log('✅ Added status column to Product table');
-    } catch (error) {
-      console.log('ℹ️ Status column might already exist:', error.message);
+      const products = await prisma.product.findMany({
+        take: 1
+      });
+      console.log('✅ Product table structure is now correct!');
+      
+      res.json({
+        status: 'success',
+        message: 'Database schema sync completed',
+        addedColumns: addedColumns,
+        productCount: products.length
+      });
+    } catch (testError) {
+      console.error('❌ Schema test failed:', testError);
+      
+      res.status(500).json({
+        status: 'error',
+        error: testError.message,
+        addedColumns: addedColumns,
+        message: 'Some columns were added but there may still be issues'
+      });
     }
-    
-    // Test the Product table structure
-    const products = await prisma.product.findMany({
-      take: 1
-    });
-    
-    res.json({
-      status: 'success',
-      message: 'Database schema sync completed',
-      productCount: products.length
-    });
     
   } catch (error) {
     console.error('❌ Schema sync failed:', error);
