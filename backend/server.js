@@ -17,6 +17,7 @@ const allowedOrigins = {
   production: [
     'https://dashboard-six-livid-91.vercel.app',
     'https://dashboard-9apwy0d4h-fasts-projects-5b1e7db1.vercel.app',
+    'https://dashboard-kj3lfkldu-fasts-projects-5b1e7db1.vercel.app',
     'https://seller.iwanyustore.store',
     'https://iwanyu-backend.onrender.com',
     process.env.CORS_ORIGIN
@@ -28,7 +29,11 @@ const allowedOrigins = {
 app.use(cors({
   origin: function(origin, callback) {
     const origins = allowedOrigins[process.env.NODE_ENV || 'development'];
-    if (!origin || origins.includes(origin)) {
+    
+    // Allow all Vercel deployment URLs for this project in production
+    const isVercelURL = origin && origin.includes('fasts-projects-5b1e7db1.vercel.app');
+    
+    if (!origin || origins.includes(origin) || isVercelURL) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
