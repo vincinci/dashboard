@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ImageUpload from './ImageUpload';
+import SizeColorInput from './SizeColorInput';
 
 const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
   const [formData, setFormData] = useState({
@@ -10,7 +11,9 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
     quantity: '',
     delivery: false,
     pickup: '',
-    images: []
+    images: [],
+    sizes: [],
+    colors: []
   });
   
   const [errors, setErrors] = useState({});
@@ -19,6 +22,9 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
   const categories = [
     'Electronics',
     'Clothing Collection',
+    'Shoes',
+    'Accessories',
+    'Bags & Backpacks',
     'Food & Beverages',
     'Home & Garden',
     'Beauty & Health',
@@ -31,6 +37,28 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
     'Laptops'
   ];
 
+  // Categories that typically need size options
+  const categoriesWithSizes = [
+    'Clothing Collection',
+    'Shoes',
+    'Accessories',
+    'Bags & Backpacks',
+    'Sports & Outdoors'
+  ];
+
+  // Categories that typically need color options
+  const categoriesWithColors = [
+    'Clothing Collection', 
+    'Shoes',
+    'Accessories',
+    'Bags & Backpacks',
+    'Electronics',
+    'Smartphones',
+    'Beauty & Health',
+    'Sports & Outdoors',
+    'Automotive'
+  ];
+
   useEffect(() => {
     if (product) {
       setFormData({
@@ -41,7 +69,9 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
         quantity: product.quantity?.toString() || '',
         delivery: product.delivery || false,
         pickup: product.pickup || '',
-        images: product.images || []
+        images: product.images || [],
+        sizes: product.sizes || [],
+        colors: product.colors || []
       });
     }
   }, [product]);
@@ -228,6 +258,42 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
               />
               {errors.description && <p className="mt-2 text-sm text-red-600">{errors.description}</p>}
             </div>
+
+            {/* Sizes - Show only for relevant categories */}
+            {categoriesWithSizes.includes(formData.category) && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Available Sizes
+                </label>
+                <SizeColorInput
+                  type="sizes"
+                  values={formData.sizes}
+                  onChange={(sizes) => setFormData(prev => ({ ...prev, sizes }))}
+                  placeholder="Add size (e.g., S, M, L, XL, 42, 43, etc.)"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Add sizes that apply to your product. Press Enter to add each size.
+                </p>
+              </div>
+            )}
+
+            {/* Colors - Show only for relevant categories */}
+            {categoriesWithColors.includes(formData.category) && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Available Colors
+                </label>
+                <SizeColorInput
+                  type="colors"
+                  values={formData.colors}
+                  onChange={(colors) => setFormData(prev => ({ ...prev, colors }))}
+                  placeholder="Add color (e.g., Red, Blue, Black, etc.)"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Add colors available for your product. Press Enter to add each color.
+                </p>
+              </div>
+            )}
 
             {/* Price and Quantity */}
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">

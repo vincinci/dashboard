@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -44,6 +44,8 @@ model Product {
   images      String?  // JSON string array of image URLs
   delivery    Boolean  @default(false)
   pickup      String?  // Pickup location
+  sizes       String?  // JSON string array of available sizes
+  colors      String?  // JSON string array of available colors
   vendorId    String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

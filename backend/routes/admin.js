@@ -184,16 +184,9 @@ router.get('/export', authenticateToken, requireAdmin, async (req, res) => {
       include: {
         vendor: {
           select: {
-            id: true,
             email: true,
             displayName: true,
-            businessName: true,
-            businessAddress: true,
-            phoneNumber: true,
-            nationalIdDocument: true,
-            businessRegistrationDocument: true,
-            legalDeclaration: true,
-            createdAt: true
+            businessName: true
           }
         }
       },
@@ -202,27 +195,23 @@ router.get('/export', authenticateToken, requireAdmin, async (req, res) => {
       }
     });
 
-    // Create CSV headers to match the specified format
+    // CSV headers matching the exact product creation form fields
     const headers = [
-      'Title',
-      'Description', 
-      'Product status',
-      'Product Category',
-      'Product Type',
-      'Vendor',
-      'Variant',
-      'SKU',
-      'Weight',
+      'ID',
+      'Name',
+      'Category', 
+      'Description',
       'Price',
-      'Default Title',
-      'Price (RWF)',
       'Quantity',
-      'Delivery Available',
-      'Pickup Location',
-      'Created Date',
+      'Delivery',
+      'Pickup',
+      'Images',
+      'Sizes',
+      'Colors',
+      'Status',
       'Vendor Email',
-      'Vendor Phone',
-      'Business Address'
+      'Vendor Name',
+      'Created Date'
     ];
 
     // Helper function to escape CSV fields
@@ -235,35 +224,46 @@ router.get('/export', authenticateToken, requireAdmin, async (req, res) => {
       return str;
     };
 
-    // Convert products to CSV rows with the new format
-    const csvRows = products.map(product => [
-      escapeCSV(product.name), // Title
-      escapeCSV(product.description), // Description
-      escapeCSV('Active'), // Product status (default to Active)
-      escapeCSV(product.category), // Product Category
-      escapeCSV(product.category), // Product Type (same as category)
-      escapeCSV(product.vendor.businessName || product.vendor.displayName), // Vendor
-      escapeCSV('Default Title'), // Variant (default)
-      escapeCSV(product.id), // SKU (using product ID)
-      escapeCSV(''), // Weight (empty for now)
-      escapeCSV(product.price), // Price (numeric)
-      escapeCSV(product.name), // Default Title (same as product name)
-      escapeCSV(`RF ${product.price}`), // Price in Rwandan Franc format
-      escapeCSV(product.quantity), // Quantity
-      escapeCSV(product.delivery ? 'Yes' : 'No'), // Delivery Available
-      escapeCSV(product.pickup || ''), // Pickup Location
-      escapeCSV(product.createdAt.toISOString().split('T')[0]), // Created Date (YYYY-MM-DD)
-      escapeCSV(product.vendor.email), // Vendor Email
-      escapeCSV(product.vendor.phoneNumber || ''), // Vendor Phone
-      escapeCSV(product.vendor.businessAddress || '') // Business Address
-    ]);
+    // Generate CSV rows
+    const csvRows = products.map(product => {
+      // Parse JSON fields safely
+      let sizes = [];
+      let colors = [];
+      let images = [];
+      
+      try {
+        sizes = product.sizes ? JSON.parse(product.sizes) : [];
+        colors = product.colors ? JSON.parse(product.colors) : [];
+        images = product.images ? JSON.parse(product.images) : [];
+      } catch (e) {
+        console.warn('Error parsing JSON for product', product.id, e);
+      }
+      
+      return [
+        escapeCSV(product.id),
+        escapeCSV(product.name),
+        escapeCSV(product.category),
+        escapeCSV(product.description),
+        escapeCSV(product.price),
+        escapeCSV(product.quantity),
+        escapeCSV(product.delivery ? 'Yes' : 'No'),
+        escapeCSV(product.pickup || ''),
+        escapeCSV(images.join('; ')),
+        escapeCSV(sizes.join('; ')),
+        escapeCSV(colors.join('; ')),
+        escapeCSV(product.status || 'active'),
+        escapeCSV(product.vendor.email),
+        escapeCSV(product.vendor.displayName || product.vendor.businessName || ''),
+        escapeCSV(product.createdAt.toISOString().split('T')[0]) // Just date, not full timestamp
+      ].join(',');
+    });
 
     // Combine headers and rows
-    const csvContent = [headers.join(','), ...csvRows.map(row => row.join(','))].join('\n');
+    const csvContent = [headers.join(','), ...csvRows].join('\n');
 
     // Set response headers for file download
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
-    const filename = `iwanyu_products_export_${timestamp}.csv`;
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `products_export_${timestamp}.csv`;
     
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

@@ -77,7 +77,9 @@ router.get('/', authenticateToken, async (req, res) => {
     // Parse images from JSON strings to arrays
     const productsWithParsedImages = products.map(product => ({
       ...product,
-      images: product.images ? JSON.parse(product.images) : []
+      images: product.images ? JSON.parse(product.images) : [],
+      sizes: product.sizes ? JSON.parse(product.sizes) : [],
+      colors: product.colors ? JSON.parse(product.colors) : []
     }));
 
     const response = {
@@ -104,7 +106,7 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const vendorId = req.user.userId;
-    const { name, category, description, price, quantity, images, delivery, pickup } = req.body;
+    const { name, category, description, price, quantity, images, delivery, pickup, sizes, colors } = req.body;
 
     // Validate required fields
     if (!name || !category || !description || price === undefined || quantity === undefined || delivery === undefined) {
@@ -131,14 +133,18 @@ router.post('/', authenticateToken, async (req, res) => {
         quantity: parseInt(quantity),
         images: images && images.length > 0 ? JSON.stringify(images) : null,
         delivery,
-        pickup: pickup || null
+        pickup: pickup || null,
+        sizes: sizes && sizes.length > 0 ? JSON.stringify(sizes) : null,
+        colors: colors && colors.length > 0 ? JSON.stringify(colors) : null
       }
     });
 
-    // Parse images back to array for response
+    // Parse JSON fields back to arrays for response
     const responseProduct = {
       ...product,
-      images: product.images ? JSON.parse(product.images) : []
+      images: product.images ? JSON.parse(product.images) : [],
+      sizes: product.sizes ? JSON.parse(product.sizes) : [],
+      colors: product.colors ? JSON.parse(product.colors) : []
     };
 
     // Clear cache for this vendor
@@ -161,7 +167,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const vendorId = req.user.userId;
-    const { name, category, description, price, quantity, images, delivery, pickup } = req.body;
+    const { name, category, description, price, quantity, images, delivery, pickup, sizes, colors } = req.body;
 
     // Check if product exists and belongs to the user
     const existingProduct = await prisma.product.findFirst({
@@ -186,14 +192,18 @@ router.put('/:id', authenticateToken, async (req, res) => {
         quantity: quantity !== undefined ? parseInt(quantity) : existingProduct.quantity,
         images: images !== undefined ? (images && images.length > 0 ? JSON.stringify(images) : null) : existingProduct.images,
         delivery: delivery !== undefined ? delivery : existingProduct.delivery,
-        pickup: pickup !== undefined ? pickup : existingProduct.pickup
+        pickup: pickup !== undefined ? pickup : existingProduct.pickup,
+        sizes: sizes !== undefined ? (sizes && sizes.length > 0 ? JSON.stringify(sizes) : null) : existingProduct.sizes,
+        colors: colors !== undefined ? (colors && colors.length > 0 ? JSON.stringify(colors) : null) : existingProduct.colors
       }
     });
 
-    // Parse images back to array for response
+    // Parse JSON fields back to arrays for response
     const responseProduct = {
       ...updatedProduct,
-      images: updatedProduct.images ? JSON.parse(updatedProduct.images) : []
+      images: updatedProduct.images ? JSON.parse(updatedProduct.images) : [],
+      sizes: updatedProduct.sizes ? JSON.parse(updatedProduct.sizes) : [],
+      colors: updatedProduct.colors ? JSON.parse(updatedProduct.colors) : []
     };
 
     // Clear cache for this vendor

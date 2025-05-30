@@ -64,6 +64,38 @@ const ProductCard = ({ product, onEdit, onDelete }) => {
             </span>
           )}
         </div>
+
+        {/* Sizes and Colors */}
+        {(product.sizes?.length > 0 || product.colors?.length > 0) && (
+          <div className="mb-2 space-y-1">
+            {product.sizes?.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="text-xs text-gray-500 font-medium">Sizes:</span>
+                {product.sizes.slice(0, 3).map((size, index) => (
+                  <span key={index} className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded">
+                    {size}
+                  </span>
+                ))}
+                {product.sizes.length > 3 && (
+                  <span className="text-xs text-gray-500">+{product.sizes.length - 3} more</span>
+                )}
+              </div>
+            )}
+            {product.colors?.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="text-xs text-gray-500 font-medium">Colors:</span>
+                {product.colors.slice(0, 3).map((color, index) => (
+                  <span key={index} className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded">
+                    {color}
+                  </span>
+                ))}
+                {product.colors.length > 3 && (
+                  <span className="text-xs text-gray-500">+{product.colors.length - 3} more</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         
         {product.description && (
           <p className="text-sm text-gray-700 mb-3 line-clamp-2">
