@@ -9,13 +9,20 @@ const API_CONFIG = {
   
   // Get base URL based on environment
   getBaseURL: () => {
-    if (process.env.NODE_ENV === 'production') {
-      return API_CONFIG.PROD_API_URL;
+    const isProduction = process.env.NODE_ENV === 'production';
+    let baseURL;
+    
+    if (isProduction) {
+      baseURL = API_CONFIG.PROD_API_URL;
+    } else {
+      // For development, use dynamic port
+      const apiPort = API_CONFIG.DEV_API_PORT;
+      baseURL = `http://localhost:${apiPort}/api`;
     }
     
-    // For development, use dynamic port
-    const apiPort = API_CONFIG.DEV_API_PORT;
-    return `http://localhost:${apiPort}/api`;
+    // Debug log to help troubleshoot
+    console.log(`[API_CONFIG] Environment: ${process.env.NODE_ENV || 'development'}, Using API URL: ${baseURL}`);
+    return baseURL;
   },
   
   // Get full API URL for specific endpoint
