@@ -11,7 +11,7 @@
     "start": "node server.js",
     "seed": "node scripts/seed.js",
     "postinstall": "prisma generate",
-    "build": "prisma generate && prisma db push",
+    "build": "prisma generate && prisma db push && node scripts/fix-production-db.js",
     "db:init": "node scripts/init-production-db.js",
     "db:simple": "node scripts/simple-init.js",
     "db:reset": "node scripts/reset-db.js",
@@ -20,7 +20,8 @@
     "db:admin-fix": "node scripts/quick-admin-fix.js",
     "db:schema-sync": "node scripts/fix-schema-sync.js",
     "db:migrate": "prisma db push",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:fix-production": "node scripts/fix-production-db.js"
   },
   "dependencies": {
     "@prisma/client": "^5.6.0",
