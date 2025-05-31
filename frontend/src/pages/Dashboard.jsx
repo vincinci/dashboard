@@ -5,7 +5,6 @@ import axios from 'axios';
 import ProductCard from '../components/ProductCard';
 import ProductForm from '../components/ProductForm';
 import CSVImport from '../components/CSVImport';
-import SmartCollections from '../components/SmartCollections';
 import Logo from '../components/Logo';
 import API_CONFIG from '../config/api';
 
@@ -18,7 +17,6 @@ const Dashboard = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeView, setActiveView] = useState('products'); // 'products' or 'collections'
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -288,174 +286,136 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* View Navigation Tabs */}
-        <div className="border-b border-gray-200 mb-8">
-          <nav className="-mb-px flex space-x-8">
+        {/* Actions Bar */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
             <button
-              onClick={() => setActiveView('products')}
-              className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
-                activeView === 'products'
-                  ? 'border-yellow-500 text-yellow-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              onClick={() => !isLimitReached && setShowForm(true)}
+              disabled={isLimitReached}
+              className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${isLimitReached ? 'bg-gray-400 cursor-not-allowed' : 'bg-yellow-600 hover:bg-yellow-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 w-full sm:w-auto justify-center`}
             >
-              Products ({pagination.total})
+              Add New Product
             </button>
             <button
-              onClick={() => setActiveView('collections')}
-              className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
-                activeView === 'collections'
-                  ? 'border-yellow-500 text-yellow-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              onClick={() => setShowCSVImport(true)}
+              className="inline-flex items-center px-4 py-2 border border-yellow-600 text-sm font-medium rounded-md text-yellow-600 bg-white hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 w-full sm:w-auto justify-center"
             >
-              Smart Collections
+              📥 Import CSV
             </button>
-          </nav>
+            <button
+              onClick={exportToCSV}
+              className="inline-flex items-center px-4 py-2 border border-yellow-600 text-sm font-medium rounded-md text-yellow-600 bg-white hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 w-full sm:w-auto justify-center"
+            >
+              📤 Export CSV
+            </button>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <p className="text-sm text-gray-500">
+              Welcome, {vendorName}!
+            </p>
+            {pagination.total > 0 && (
+              <p className="text-sm text-gray-500">
+                Showing {products.length} of {pagination.total} products
+              </p>
+            )}
+          </div>
         </div>
 
-        {activeView === 'products' && (
-          <>
-            {/* Actions Bar */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-                <button
-                  onClick={() => !isLimitReached && setShowForm(true)}
-                  disabled={isLimitReached}
-                  className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${isLimitReached ? 'bg-gray-400 cursor-not-allowed' : 'bg-yellow-600 hover:bg-yellow-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 w-full sm:w-auto justify-center`}
-                >
-                  Add New Product
-                </button>
-                <button
-                  onClick={() => setShowCSVImport(true)}
-                  className="inline-flex items-center px-4 py-2 border border-yellow-600 text-sm font-medium rounded-md text-yellow-600 bg-white hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 w-full sm:w-auto justify-center"
-                >
-                  📥 Import CSV
-                </button>
-                <button
-                  onClick={exportToCSV}
-                  className="inline-flex items-center px-4 py-2 border border-yellow-600 text-sm font-medium rounded-md text-yellow-600 bg-white hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 w-full sm:w-auto justify-center"
-                >
-                  📤 Export CSV
-                </button>
-              </div>
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <p className="text-sm text-gray-500">
-                  Welcome, {vendorName}!
+        {/* Products Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {products.map(product => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              onEdit={() => handleEdit(product)}
+              onDelete={() => handleDeleteProduct(product.id)}
+            />
+          ))}
+        </div>
+
+        {products.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No products yet. Start by adding a new product!</p>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-8">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => handlePageChange(pagination.currentPage - 1)}
+                disabled={pagination.currentPage === 1}
+                className={`relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium ${
+                  pagination.currentPage === 1
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => handlePageChange(pagination.currentPage + 1)}
+                disabled={pagination.currentPage === pagination.totalPages}
+                className={`relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium ${
+                  pagination.currentPage === pagination.totalPages
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Showing <span className="font-medium">{((pagination.currentPage - 1) * pagination.limit) + 1}</span> to{' '}
+                  <span className="font-medium">
+                    {Math.min(pagination.currentPage * pagination.limit, pagination.total)}
+                  </span>{' '}
+                  of <span className="font-medium">{pagination.total}</span> results
                 </p>
-                {pagination.total > 0 && (
-                  <p className="text-sm text-gray-500">
-                    Showing {products.length} of {pagination.total} products
-                  </p>
-                )}
               </div>
-            </div>
-
-            {/* Products Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.map(product => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onEdit={() => handleEdit(product)}
-                  onDelete={() => handleDeleteProduct(product.id)}
-                />
-              ))}
-            </div>
-
-            {products.length === 0 && !loading && (
-              <div className="text-center py-12">
-                <p className="text-gray-500">No products yet. Start by adding a new product!</p>
-              </div>
-            )}
-
-            {/* Pagination */}
-            {pagination.totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-8">
-                <div className="flex flex-1 justify-between sm:hidden">
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
                   <button
                     onClick={() => handlePageChange(pagination.currentPage - 1)}
                     disabled={pagination.currentPage === 1}
-                    className={`relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium ${
-                      pagination.currentPage === 1
-                        ? 'text-gray-300 cursor-not-allowed'
-                        : 'text-gray-700 hover:bg-gray-50'
+                    className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                      pagination.currentPage === 1 ? 'cursor-not-allowed' : ''
                     }`}
                   >
                     Previous
                   </button>
+                  
+                  {/* Page numbers */}
+                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                        page === pagination.currentPage
+                          ? 'z-10 bg-yellow-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-600'
+                          : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  
                   <button
                     onClick={() => handlePageChange(pagination.currentPage + 1)}
                     disabled={pagination.currentPage === pagination.totalPages}
-                    className={`relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium ${
-                      pagination.currentPage === pagination.totalPages
-                        ? 'text-gray-300 cursor-not-allowed'
-                        : 'text-gray-700 hover:bg-gray-50'
+                    className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                      pagination.currentPage === pagination.totalPages ? 'cursor-not-allowed' : ''
                     }`}
                   >
                     Next
                   </button>
-                </div>
-                <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Showing <span className="font-medium">{((pagination.currentPage - 1) * pagination.limit) + 1}</span> to{' '}
-                      <span className="font-medium">
-                        {Math.min(pagination.currentPage * pagination.limit, pagination.total)}
-                      </span>{' '}
-                      of <span className="font-medium">{pagination.total}</span> results
-                    </p>
-                  </div>
-                  <div>
-                    <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                      <button
-                        onClick={() => handlePageChange(pagination.currentPage - 1)}
-                        disabled={pagination.currentPage === 1}
-                        className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
-                          pagination.currentPage === 1 ? 'cursor-not-allowed' : ''
-                        }`}
-                      >
-                        Previous
-                      </button>
-                      
-                      {/* Page numbers */}
-                      {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
-                        <button
-                          key={page}
-                          onClick={() => handlePageChange(page)}
-                          className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
-                            page === pagination.currentPage
-                              ? 'z-10 bg-yellow-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-600'
-                              : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      ))}
-                      
-                      <button
-                        onClick={() => handlePageChange(pagination.currentPage + 1)}
-                        disabled={pagination.currentPage === pagination.totalPages}
-                        className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
-                          pagination.currentPage === pagination.totalPages ? 'cursor-not-allowed' : ''
-                        }`}
-                      >
-                        Next
-                      </button>
-                    </nav>
-                  </div>
-                </div>
+                </nav>
               </div>
-            )}
-          </>
-        )}
-
-        {activeView === 'collections' && (
-          <SmartCollections
-            onEdit={handleEdit}
-            onDelete={handleDeleteProduct}
-            onRefresh={() => fetchProducts(pagination.currentPage)}
-          />
+            </div>
+          </div>
         )}
       </main>
 
