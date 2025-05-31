@@ -6,7 +6,6 @@ import ProductCard from '../components/ProductCard';
 import ProductForm from '../components/ProductForm';
 import CSVImport from '../components/CSVImport';
 import SmartCollections from '../components/SmartCollections';
-import ShopifyIntegration from '../components/ShopifyIntegration';
 import Logo from '../components/Logo';
 import API_CONFIG from '../config/api';
 
@@ -16,7 +15,6 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showCSVImport, setShowCSVImport] = useState(false);
-  const [showShopifyIntegration, setShowShopifyIntegration] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -340,12 +338,6 @@ const Dashboard = () => {
                 >
                   📤 Export CSV
                 </button>
-                <button
-                  onClick={() => setShowShopifyIntegration(true)}
-                  className="inline-flex items-center px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 w-full sm:w-auto justify-center"
-                >
-                  🛍️ Sync to Shopify
-                </button>
               </div>
               <div className="flex flex-col sm:flex-row items-center gap-4">
                 <p className="text-sm text-gray-500">
@@ -488,14 +480,6 @@ const Dashboard = () => {
         <CSVImport
           onImportComplete={handleCSVImportComplete}
           onClose={() => setShowCSVImport(false)}
-        />
-      )}
-
-      {/* Shopify Integration Modal */}
-      {showShopifyIntegration && (
-        <ShopifyIntegration
-          onClose={() => setShowShopifyIntegration(false)}
-          selectedProducts={[]} // Can be modified to pass selected products if needed
         />
       )}
     </div>

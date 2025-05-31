@@ -26,11 +26,19 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// POST /api/shopify/connect → Connect to Shopify store
-router.post('/connect', authenticateToken, async (req, res) => {
+// Middleware to check if user is admin
+function requireAdmin(req, res, next) {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+}
+
+// POST /api/shopify/connect → Admin connects to Shopify store
+router.post('/connect', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const vendorId = req.user.userId;
-    const { shopifyStoreUrl, accessToken } = req.body;
+    const adminId = req.user.userId;
+    const { shopifyStoreUrl, accessToken, storeName } = req.body;
 
     if (!shopifyStoreUrl || !accessToken) {
       return res.status(400).json({ error: 'Shopify store URL and access token are required' });
@@ -55,9 +63,9 @@ router.post('/connect', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check if user already has Shopify connection
+    // Check if admin already has Shopify connection
     const existingConnection = await prisma.shopifyConnection.findFirst({
-      where: { vendorId }
+      where: { adminId }
     });
 
     let connection;
@@ -68,6 +76,7 @@ router.post('/connect', authenticateToken, async (req, res) => {
         data: {
           shopifyStoreUrl,
           accessToken,
+          storeName: storeName || shopifyStoreUrl,
           isActive: true,
           lastSyncAt: null // Reset sync status
         }
@@ -76,9 +85,10 @@ router.post('/connect', authenticateToken, async (req, res) => {
       // Create new connection
       connection = await prisma.shopifyConnection.create({
         data: {
-          vendorId,
+          adminId,
           shopifyStoreUrl,
           accessToken,
+          storeName: storeName || shopifyStoreUrl,
           isActive: true
         }
       });
@@ -98,16 +108,17 @@ router.post('/connect', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/shopify/connection → Get current Shopify connection status
-router.get('/connection', authenticateToken, async (req, res) => {
+// GET /api/shopify/connection → Get current Shopify connection status (admin only)
+router.get('/connection', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const vendorId = req.user.userId;
+    const adminId = req.user.userId;
 
     const connection = await prisma.shopifyConnection.findFirst({
-      where: { vendorId },
+      where: { adminId },
       select: {
         id: true,
         shopifyStoreUrl: true,
+        storeName: true,
         isActive: true,
         lastSyncAt: true,
         createdAt: true,
@@ -133,33 +144,142 @@ router.get('/connection', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/shopify/sync-products → Sync products to Shopify
-router.post('/sync-products', authenticateToken, async (req, res) => {
+// GET /api/shopify/products → Get all products with verification status (admin only)
+router.get('/products', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const vendorId = req.user.userId;
+    const { page = 1, limit = 10, status, vendor, verified } = req.query;
+
+    const whereClause = {};
+    
+    if (status && status !== 'all') {
+      whereClause.status = status;
+    }
+    
+    if (vendor) {
+      whereClause.vendorId = vendor;
+    }
+    
+    if (verified !== undefined) {
+      whereClause.isVerified = verified === 'true';
+    }
+
+    const skip = (page - 1) * limit;
+    
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where: whereClause,
+        include: {
+          vendor: {
+            select: {
+              id: true,
+              displayName: true,
+              businessName: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: parseInt(skip),
+        take: parseInt(limit)
+      }),
+      prisma.product.count({ where: whereClause })
+    ]);
+
+    const pagination = {
+      currentPage: parseInt(page),
+      pages: Math.ceil(total / limit),
+      total,
+      limit: parseInt(limit)
+    };
+
+    res.json({ products, pagination });
+
+  } catch (error) {
+    console.error('Error fetching products for admin:', error);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+// PUT /api/shopify/products/:id/verify → Admin verify/approve product
+router.put('/products/:id/verify', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isVerified, isApprovedForShopify, adminNotes } = req.body;
+
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        vendor: {
+          select: { displayName: true, businessName: true, email: true }
+        }
+      }
+    });
+
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const updatedProduct = await prisma.product.update({
+      where: { id },
+      data: {
+        isVerified: isVerified !== undefined ? isVerified : product.isVerified,
+        isApprovedForShopify: isApprovedForShopify !== undefined ? isApprovedForShopify : product.isApprovedForShopify,
+        adminNotes: adminNotes !== undefined ? adminNotes : product.adminNotes
+      },
+      include: {
+        vendor: {
+          select: { displayName: true, businessName: true, email: true }
+        }
+      }
+    });
+
+    res.json({
+      message: 'Product verification status updated successfully',
+      product: updatedProduct
+    });
+
+  } catch (error) {
+    console.error('Error updating product verification:', error);
+    res.status(500).json({ error: 'Failed to update product verification' });
+  }
+});
+
+// POST /api/shopify/sync-products → Admin sync approved products to Shopify
+router.post('/sync-products', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const adminId = req.user.userId;
     const { productIds } = req.body; // Optional: sync specific products
 
     // Get Shopify connection
     const connection = await prisma.shopifyConnection.findFirst({
-      where: { vendorId, isActive: true }
+      where: { adminId, isActive: true }
     });
 
     if (!connection) {
       return res.status(400).json({ error: 'No active Shopify connection found. Please connect to Shopify first.' });
     }
 
-    // Get products to sync
-    const whereClause = { vendorId };
+    // Get approved products to sync
+    const whereClause = { 
+      isVerified: true,
+      isApprovedForShopify: true
+    };
+    
     if (productIds && productIds.length > 0) {
       whereClause.id = { in: productIds };
     }
 
     const products = await prisma.product.findMany({
-      where: whereClause
+      where: whereClause,
+      include: {
+        vendor: {
+          select: { displayName: true, businessName: true, email: true }
+        }
+      }
     });
 
     if (products.length === 0) {
-      return res.status(400).json({ error: 'No products found to sync' });
+      return res.status(400).json({ error: 'No approved products found to sync' });
     }
 
     const syncResults = {
@@ -168,7 +288,7 @@ router.post('/sync-products', authenticateToken, async (req, res) => {
       synced: []
     };
 
-    // Sync each product to Shopify
+    // Sync each approved product to Shopify
     for (const product of products) {
       try {
         // Parse JSON fields
@@ -187,7 +307,7 @@ router.post('/sync-products', authenticateToken, async (req, res) => {
                 option2: color,
                 price: product.price.toString(),
                 inventory_quantity: Math.floor(product.quantity / (sizes.length * colors.length)),
-                sku: `${product.id}-${size}-${color}`.replace(/\s+/g, '-').toUpperCase()
+                sku: `${product.vendor.businessName || product.vendor.displayName}-${product.id}-${size}-${color}`.replace(/\s+/g, '-').toUpperCase()
               });
             });
           });
@@ -198,7 +318,7 @@ router.post('/sync-products', authenticateToken, async (req, res) => {
               option1: size,
               price: product.price.toString(),
               inventory_quantity: Math.floor(product.quantity / sizes.length),
-              sku: `${product.id}-${size}`.replace(/\s+/g, '-').toUpperCase()
+              sku: `${product.vendor.businessName || product.vendor.displayName}-${product.id}-${size}`.replace(/\s+/g, '-').toUpperCase()
             });
           });
         } else if (colors.length > 0) {
@@ -208,7 +328,7 @@ router.post('/sync-products', authenticateToken, async (req, res) => {
               option1: color,
               price: product.price.toString(),
               inventory_quantity: Math.floor(product.quantity / colors.length),
-              sku: `${product.id}-${color}`.replace(/\s+/g, '-').toUpperCase()
+              sku: `${product.vendor.businessName || product.vendor.displayName}-${product.id}-${color}`.replace(/\s+/g, '-').toUpperCase()
             });
           });
         } else {
@@ -216,19 +336,24 @@ router.post('/sync-products', authenticateToken, async (req, res) => {
           variants.push({
             price: product.price.toString(),
             inventory_quantity: product.quantity,
-            sku: `${product.id}`.toUpperCase()
+            sku: `${product.vendor.businessName || product.vendor.displayName}-${product.id}`.replace(/\s+/g, '-').toUpperCase()
           });
         }
 
-        // Prepare Shopify product data
+        // Prepare Shopify product data with vendor information
+        const productTitle = `${product.name} - by ${product.vendor.businessName || product.vendor.displayName}`;
+        const productDescription = `${product.description}\n\n---\nVendor: ${product.vendor.businessName || product.vendor.displayName}`;
+
         const shopifyProduct = {
           product: {
-            title: product.name,
-            body_html: product.description,
+            title: productTitle,
+            body_html: productDescription,
             product_type: product.category,
-            status: product.status === 'active' ? 'active' : 'draft',
+            vendor: product.vendor.businessName || product.vendor.displayName,
+            status: 'active', // All approved products are active
             variants: variants,
-            images: images.map(img => ({ src: img }))
+            images: images.map(img => ({ src: img })),
+            tags: ['verified', 'marketplace', product.category].join(',')
           }
         };
 
@@ -249,31 +374,30 @@ router.post('/sync-products', authenticateToken, async (req, res) => {
           }
         }
 
-        // Check if product already exists in Shopify (by SKU or title)
+        // Check if product already exists in Shopify
         let existingProduct = null;
-        try {
-          const searchResponse = await axios.get(
-            `https://${connection.shopifyStoreUrl}/admin/api/2024-10/products.json?title=${encodeURIComponent(product.name)}`,
-            {
-              headers: {
-                'X-Shopify-Access-Token': connection.accessToken,
-                'Content-Type': 'application/json'
+        if (product.shopifyProductId) {
+          try {
+            const getResponse = await axios.get(
+              `https://${connection.shopifyStoreUrl}/admin/api/2024-10/products/${product.shopifyProductId}.json`,
+              {
+                headers: {
+                  'X-Shopify-Access-Token': connection.accessToken,
+                  'Content-Type': 'application/json'
+                }
               }
-            }
-          );
-          
-          if (searchResponse.data.products && searchResponse.data.products.length > 0) {
-            existingProduct = searchResponse.data.products[0];
+            );
+            existingProduct = getResponse.data.product;
+          } catch (getError) {
+            console.warn('Product not found in Shopify, will create new one:', getError.message);
           }
-        } catch (searchError) {
-          console.warn('Error searching for existing product:', searchError.message);
         }
 
         let shopifyResponse;
         if (existingProduct) {
           // Update existing product
           shopifyResponse = await axios.put(
-            `https://${connection.shopifyStoreUrl}/admin/api/2024-10/products/${existingProduct.id}.json`,
+            `https://${connection.shopifyStoreUrl}/admin/api/2024-10/products/${product.shopifyProductId}.json`,
             shopifyProduct,
             {
               headers: {
@@ -308,6 +432,7 @@ router.post('/sync-products', authenticateToken, async (req, res) => {
         syncResults.synced.push({
           productId: product.id,
           productName: product.name,
+          vendorName: product.vendor.businessName || product.vendor.displayName,
           shopifyId: shopifyResponse.data.product.id,
           action: existingProduct ? 'updated' : 'created'
         });
@@ -318,6 +443,7 @@ router.post('/sync-products', authenticateToken, async (req, res) => {
         syncResults.errors.push({
           productId: product.id,
           productName: product.name,
+          vendorName: product.vendor.businessName || product.vendor.displayName,
           error: error.response?.data?.errors || error.message
         });
       }
@@ -345,13 +471,13 @@ router.post('/sync-products', authenticateToken, async (req, res) => {
   }
 });
 
-// DELETE /api/shopify/disconnect → Disconnect from Shopify
-router.delete('/disconnect', authenticateToken, async (req, res) => {
+// DELETE /api/shopify/disconnect → Admin disconnect from Shopify
+router.delete('/disconnect', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const vendorId = req.user.userId;
+    const adminId = req.user.userId;
 
     const connection = await prisma.shopifyConnection.findFirst({
-      where: { vendorId }
+      where: { adminId }
     });
 
     if (!connection) {
@@ -368,6 +494,31 @@ router.delete('/disconnect', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error disconnecting from Shopify:', error);
     res.status(500).json({ error: 'Failed to disconnect from Shopify' });
+  }
+});
+
+// GET /api/shopify/vendors → Get all vendors for filtering (admin only)
+router.get('/vendors', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const vendors = await prisma.user.findMany({
+      where: { isAdmin: false },
+      select: {
+        id: true,
+        displayName: true,
+        businessName: true,
+        email: true,
+        _count: {
+          select: { products: true }
+        }
+      },
+      orderBy: { displayName: 'asc' }
+    });
+
+    res.json({ vendors });
+
+  } catch (error) {
+    console.error('Error fetching vendors:', error);
+    res.status(500).json({ error: 'Failed to fetch vendors' });
   }
 });
 

@@ -5,6 +5,7 @@ import Logo from '../components/Logo';
 import DocumentViewer from '../components/DocumentViewer';
 import DeliveryAddressViewer from '../components/DeliveryAddressViewer';
 import ConfirmationModal from '../components/ConfirmationModal';
+import AdminShopifyIntegration from '../components/AdminShopifyIntegration';
 import API_CONFIG from '../config/api';
 
 const AdminDashboard = () => {
@@ -21,6 +22,7 @@ const AdminDashboard = () => {
   const [selectedUserForAddress, setSelectedUserForAddress] = useState(null);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+  const [showShopifyIntegration, setShowShopifyIntegration] = useState(false);
 
   // Format price in RWF
   const formatRWF = (price) => {
@@ -329,7 +331,8 @@ const AdminDashboard = () => {
             {[
               { id: 'overview', name: 'Overview' },
               { id: 'users', name: 'Users' },
-              { id: 'products', name: 'Products' }
+              { id: 'products', name: 'Products' },
+              { id: 'shopify', name: 'Shopify' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -650,6 +653,23 @@ const AdminDashboard = () => {
               </div>
             </div>
           )}
+
+          {activeTab === 'shopify' && (
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="text-center">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Shopify Integration</h3>
+                <p className="text-gray-600 mb-6">
+                  Manage product verification and sync approved vendor products to your Shopify store.
+                </p>
+                <button
+                  onClick={() => setShowShopifyIntegration(true)}
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  🛍️ Open Shopify Management
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -679,6 +699,12 @@ const AdminDashboard = () => {
           message={`Are you sure you want to remove "${userToDelete?.displayName}"?`}
           confirmText="DELETE"
           confirmButtonText="Remove User"
+        />
+      )}
+
+      {showShopifyIntegration && (
+        <AdminShopifyIntegration
+          onClose={() => setShowShopifyIntegration(false)}
         />
       )}
     </div>

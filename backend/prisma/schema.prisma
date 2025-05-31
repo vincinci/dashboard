@@ -50,6 +50,9 @@ model Product {
   vendorId          String
   shopifyProductId  String?   // Shopify product ID when synced
   lastSyncedAt      DateTime? // Last time product was synced to Shopify
+  isVerified        Boolean   @default(false)  // Admin verification status
+  isApprovedForShopify Boolean @default(false) // Admin approval for Shopify sync
+  adminNotes        String?   // Admin notes about verification/approval
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   
@@ -59,16 +62,17 @@ model Product {
 
 model ShopifyConnection {
   id               String    @id @default(uuid())
-  vendorId         String
+  adminId          String    // Only admin can have Shopify connection
   shopifyStoreUrl  String    // Store URL without https:// (e.g., mystore.myshopify.com)
   accessToken      String    // Shopify API access token
+  storeName        String?   // Friendly store name
   isActive         Boolean   @default(true)
   lastSyncAt       DateTime? // Last time products were synced
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   
   // Relations
-  vendor           User      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  admin            User      @relation(fields: [adminId], references: [id], onDelete: Cascade)
   
-  @@unique([vendorId]) // One connection per vendor
+  @@unique([adminId]) // One connection per admin
 } 
