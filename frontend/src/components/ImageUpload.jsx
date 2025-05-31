@@ -7,8 +7,103 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState({});
   const fileInputRef = useRef(null);
   const { isAuthenticated, token } = useAuth();
+
+  // Client-side image compression function
+  const compressImage = (file, quality = 0.8, maxWidth = 1200, maxHeight = 1200) => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions
+        let { width, height } = img;
+        
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width *= ratio;
+          height *= ratio;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(resolve, file.type, quality);
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // Convert blob to base64
+  const blobToBase64 = (blob) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  // Upload single file with progress
+  const uploadSingleFile = async (file, index) => {
+    try {
+      // Update progress
+      setUploadProgress(prev => ({ ...prev, [index]: { stage: 'compressing', progress: 10 } }));
+      
+      // Compress image
+      const compressedBlob = await compressImage(file);
+      const compressedFile = new File([compressedBlob], file.name, { type: file.type });
+      
+      setUploadProgress(prev => ({ ...prev, [index]: { stage: 'converting', progress: 30 } }));
+      
+      // Convert to base64
+      const base64 = await blobToBase64(compressedFile);
+      
+      setUploadProgress(prev => ({ ...prev, [index]: { stage: 'uploading', progress: 50 } }));
+      
+      // Get upload token
+      const contextToken = token;
+      const tokenFromStorage = localStorage.getItem('authToken');
+      const tokenFromAxios = axios.defaults.headers.common['Authorization']?.replace('Bearer ', '');
+      const finalToken = contextToken || tokenFromStorage || tokenFromAxios;
+      
+      if (!finalToken) {
+        throw new Error('Authentication token not found. Please log in again.');
+      }
+
+      // Upload to backend
+      const response = await axios.post(API_CONFIG.getURL('/upload/image'), {
+        image: base64,
+        filename: file.name
+      }, {
+        headers: { 
+          Authorization: `Bearer ${finalToken}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000,
+        onUploadProgress: (progressEvent) => {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(prev => ({ 
+            ...prev, 
+            [index]: { stage: 'uploading', progress: 50 + (progress * 0.5) } 
+          }));
+        }
+      });
+
+      setUploadProgress(prev => ({ ...prev, [index]: { stage: 'complete', progress: 100 } }));
+      
+      return response.data.imageUrl;
+    } catch (err) {
+      setUploadProgress(prev => ({ ...prev, [index]: { stage: 'error', progress: 0, error: err.message } }));
+      throw err;
+    }
+  };
 
   const handleFiles = async (files) => {
     const fileArray = Array.from(files);
@@ -27,7 +122,7 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
     }
 
     // Validate file types and sizes
-    const validFiles = fileArray.filter(file => {
+    const validFiles = fileArray.filter((file, index) => {
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
       const maxSize = 10 * 1024 * 1024; // 10MB
 
@@ -49,52 +144,36 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
     try {
       setUploading(true);
       setError('');
+      setUploadProgress({});
 
-      // Convert files to base64 and upload
-      const uploadedUrls = [];
-      for (const file of validFiles) {
-        try {
-          // Convert file to base64
-          const base64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-
-          // Get upload token - try context first, then localStorage, then axios
-          const contextToken = token;
-          const tokenFromStorage = localStorage.getItem('authToken');
-          const tokenFromAxios = axios.defaults.headers.common['Authorization']?.replace('Bearer ', '');
-          const finalToken = contextToken || tokenFromStorage || tokenFromAxios;
-          
-          if (!finalToken) {
-            throw new Error('Authentication token not found. Please log in again.');
+      // Use bulk upload for multiple files (faster) or single upload for one file
+      if (validFiles.length > 1) {
+        await handleBulkUpload(validFiles);
+      } else {
+        // Upload files in parallel for better performance
+        const uploadPromises = validFiles.map((file, index) => uploadSingleFile(file, index));
+        const results = await Promise.allSettled(uploadPromises);
+        
+        // Process results
+        const uploadedUrls = [];
+        const errors = [];
+        
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            uploadedUrls.push(result.value);
+          } else {
+            errors.push(`${validFiles[index].name}: ${result.reason.message}`);
           }
+        });
 
-          // Upload to backend
-          const response = await axios.post(API_CONFIG.getURL('/upload/image'), {
-            image: base64,
-            filename: file.name
-          }, {
-            headers: { 
-              Authorization: `Bearer ${finalToken}`,
-              'Content-Type': 'application/json'
-            },
-            timeout: 30000 // Longer timeout for large files
-          });
-
-          uploadedUrls.push(response.data.imageUrl);
-        } catch (err) {
-          console.error('Failed to upload file:', file.name, err);
-          const errorMsg = err.response?.data?.message || err.message;
-          setError(`Failed to upload ${file.name}: ${errorMsg}`);
+        if (uploadedUrls.length > 0) {
+          const newImages = [...images, ...uploadedUrls];
+          onChange(newImages);
         }
-      }
 
-      if (uploadedUrls.length > 0) {
-        const newImages = [...images, ...uploadedUrls];
-        onChange(newImages);
+        if (errors.length > 0) {
+          setError(`Some uploads failed: ${errors.join(', ')}`);
+        }
       }
 
     } catch (error) {
@@ -105,6 +184,85 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
       setError(errorMsg);
     } finally {
       setUploading(false);
+      setUploadProgress({});
+    }
+  };
+
+  // Bulk upload for multiple files (faster)
+  const handleBulkUpload = async (files) => {
+    try {
+      setUploadProgress({ bulk: { stage: 'processing', progress: 10 } });
+
+      // Process all files in parallel
+      const processPromises = files.map(async (file, index) => {
+        // Compress image
+        const compressedBlob = await compressImage(file);
+        const compressedFile = new File([compressedBlob], file.name, { type: file.type });
+        
+        // Convert to base64
+        const base64 = await blobToBase64(compressedFile);
+        
+        return {
+          image: base64,
+          filename: file.name
+        };
+      });
+
+      setUploadProgress({ bulk: { stage: 'compressing', progress: 30 } });
+      const processedImages = await Promise.all(processPromises);
+
+      setUploadProgress({ bulk: { stage: 'uploading', progress: 60 } });
+
+      // Get upload token
+      const contextToken = token;
+      const tokenFromStorage = localStorage.getItem('authToken');
+      const tokenFromAxios = axios.defaults.headers.common['Authorization']?.replace('Bearer ', '');
+      const finalToken = contextToken || tokenFromStorage || tokenFromAxios;
+      
+      if (!finalToken) {
+        throw new Error('Authentication token not found. Please log in again.');
+      }
+
+      // Upload all images in one request
+      const response = await axios.post(API_CONFIG.getURL('/upload/images'), {
+        images: processedImages
+      }, {
+        headers: { 
+          Authorization: `Bearer ${finalToken}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 60000, // Longer timeout for bulk upload
+        onUploadProgress: (progressEvent) => {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress({ 
+            bulk: { 
+              stage: 'uploading', 
+              progress: 60 + (progress * 0.4) 
+            } 
+          });
+        }
+      });
+
+      setUploadProgress({ bulk: { stage: 'complete', progress: 100 } });
+
+      if (response.data.success) {
+        const uploadedUrls = response.data.results.map(result => result.imageUrl);
+        
+        if (uploadedUrls.length > 0) {
+          const newImages = [...images, ...uploadedUrls];
+          onChange(newImages);
+        }
+
+        // Show any partial failures
+        if (response.data.errors && response.data.errors.length > 0) {
+          const errorMessages = response.data.errors.map(err => `${err.filename}: ${err.error}`);
+          setError(`Some uploads failed: ${errorMessages.join(', ')}`);
+        }
+      }
+
+    } catch (error) {
+      console.error('Bulk upload error:', error);
+      throw error;
     }
   };
 
@@ -161,22 +319,83 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
     onChange(newImages);
   };
 
+  const getProgressBar = () => {
+    const progressEntries = Object.entries(uploadProgress);
+    if (progressEntries.length === 0) return null;
+
+    // Handle bulk upload progress
+    if (uploadProgress.bulk) {
+      const { stage, progress } = uploadProgress.bulk;
+      return (
+        <div className="mt-2">
+          <div className="flex justify-between text-sm text-gray-600 mb-1">
+            <span>⚡ Bulk uploading images...</span>
+            <span>{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="mt-1">
+            <div className="text-xs text-blue-600 font-medium">
+              {stage === 'processing' && '📋 Processing files...'}
+              {stage === 'compressing' && '🗜️ Compressing images...'}
+              {stage === 'uploading' && '🚀 Uploading to server...'}
+              {stage === 'complete' && '✅ Upload complete!'}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Handle individual file progress
+    const totalProgress = progressEntries.reduce((sum, [, data]) => sum + data.progress, 0) / progressEntries.length;
+
+    return (
+      <div className="mt-2">
+        <div className="flex justify-between text-sm text-gray-600 mb-1">
+          <span>Uploading {progressEntries.length} image(s)...</span>
+          <span>{Math.round(totalProgress)}%</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2">
+          <div 
+            className="bg-yellow-600 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${totalProgress}%` }}
+          />
+        </div>
+        <div className="mt-1 space-y-1">
+          {progressEntries.map(([index, data]) => (
+            <div key={index} className="text-xs text-gray-500">
+              File {parseInt(index) + 1}: {data.stage} {data.error && `- ${data.error}`}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Upload Area */}
       <div
-        className={`border-2 border-dashed rounded-lg p-6 ${
-          dragActive ? 'border-yellow-500 bg-yellow-50' : 'border-gray-300 hover:border-yellow-500'
+        className={`border-2 border-dashed rounded-lg p-6 transition-colors ${
+          dragActive 
+            ? 'border-yellow-500 bg-yellow-50' 
+            : uploading 
+              ? 'border-blue-500 bg-blue-50' 
+              : 'border-gray-300 hover:border-yellow-500'
         }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => !uploading && fileInputRef.current?.click()}
       >
         <div className="text-center">
           <svg
-            className="mx-auto h-12 w-12 text-gray-400"
+            className={`mx-auto h-12 w-12 ${uploading ? 'text-blue-400 animate-pulse' : 'text-gray-400'}`}
             stroke="currentColor"
             fill="none"
             viewBox="0 0 48 48"
@@ -190,8 +409,8 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
             />
           </svg>
           <div className="mt-4 flex text-sm text-gray-600">
-            <label className="relative cursor-pointer rounded-md font-medium text-yellow-600 hover:text-yellow-500">
-              <span>{uploading ? 'Uploading...' : 'Upload images'}</span>
+            <label className={`relative cursor-pointer rounded-md font-medium text-yellow-600 hover:text-yellow-500 ${uploading ? 'pointer-events-none opacity-50' : ''}`}>
+              <span>{uploading ? 'Processing...' : 'Upload images'}</span>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -204,8 +423,13 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
             </label>
             <p className="pl-1">or drag and drop</p>
           </div>
-          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+          <p className="text-xs text-gray-500">
+            PNG, JPG, GIF up to 10MB • Images will be automatically compressed
+          </p>
         </div>
+        
+        {/* Progress Bar */}
+        {getProgressBar()}
       </div>
 
       {/* Image Preview */}
@@ -217,6 +441,7 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
                 src={image}
                 alt={`Product ${index + 1}`}
                 className="object-cover w-full h-full rounded-lg"
+                loading="lazy"
                 onError={(e) => {
                   e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik03MCA3MEgxMzBWMTMwSDcwVjcwWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K';
                 }}
@@ -240,14 +465,19 @@ const ImageUpload = ({ images, onChange, maxImages = 5 }) => {
 
       {/* Error message */}
       {error && (
-        <div className="mt-2 text-sm text-red-600">
-          {error}
+        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-sm text-red-600">{error}</p>
         </div>
       )}
 
-      {/* Progress indicator */}
-      <div className="text-sm text-gray-500 text-center">
-        {images.length} of {maxImages} images added
+      {/* Upload info */}
+      <div className="text-sm text-gray-500 text-center space-y-1">
+        <div>{images.length} of {maxImages} images added</div>
+        {uploading && (
+          <div className="text-blue-600 font-medium">
+            ⚡ Fast upload with automatic compression enabled
+          </div>
+        )}
       </div>
     </div>
   );
