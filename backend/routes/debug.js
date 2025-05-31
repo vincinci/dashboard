@@ -1,6 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { Prisma } = require('@prisma/client');
+const { emergencyDatabaseInit } = require('../scripts/emergency-db-init');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -323,6 +324,56 @@ router.get('/test-products', async (req, res) => {
       status: 'error',
       error: error.message,
       code: error.code
+    });
+  }
+});
+
+// Debug endpoint to check database status
+router.get('/db-status', async (req, res) => {
+  try {
+    const userCount = await prisma.user.count();
+    const productCount = await prisma.product.count();
+    
+    res.json({
+      status: 'success',
+      database: {
+        tablesExist: true,
+        userCount,
+        productCount
+      }
+    });
+  } catch (error) {
+    res.json({
+      status: 'error',
+      database: {
+        tablesExist: false,
+        error: error.message,
+        code: error.code
+      }
+    });
+  }
+});
+
+// Emergency database initialization endpoint (for free plan users)
+router.post('/init-database', async (req, res) => {
+  try {
+    console.log('🚨 Manual database initialization triggered via API...');
+    await emergencyDatabaseInit();
+    
+    res.json({
+      status: 'success',
+      message: 'Database initialized successfully',
+      credentials: {
+        email: 'admin@iwanyu.com',
+        password: 'admin123'
+      }
+    });
+  } catch (error) {
+    console.error('❌ Manual database initialization failed:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Database initialization failed',
+      error: error.message
     });
   }
 });

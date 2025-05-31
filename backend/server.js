@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
+const { emergencyDatabaseInit } = require('./scripts/emergency-db-init');
 
 const authRouter = require('./routes/auth');
 const productsRouter = require('./routes/products');
@@ -13,6 +14,27 @@ const debugRouter = require('./routes/debug');
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
+
+// Auto-initialize database if tables are missing
+async function initializeDatabaseIfNeeded() {
+  try {
+    console.log('🔍 Checking database tables...');
+    await prisma.user.count();
+    console.log('✅ Database tables exist');
+  } catch (error) {
+    if (error.code === 'P2021' && error.message.includes('does not exist')) {
+      console.log('⚠️  Database tables missing, running emergency initialization...');
+      try {
+        await emergencyDatabaseInit();
+        console.log('✅ Database automatically initialized');
+      } catch (initError) {
+        console.error('❌ Auto database initialization failed:', initError);
+      }
+    } else {
+      console.error('⚠️  Database check failed:', error.message);
+    }
+  }
+}
 
 // CORS Configuration
 const allowedOrigins = {
@@ -130,12 +152,25 @@ app.use('*', (req, res) => {
   });
 });
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📱 API available at http://localhost:${PORT}`);
-  console.log(`🏥 Health check at http://localhost:${PORT}/api/health`);
-});
+// Start the server with database initialization
+async function startServer() {
+  try {
+    // Initialize database if needed
+    await initializeDatabaseIfNeeded();
+    
+    // Start the server
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📱 API available at http://localhost:${PORT}`);
+      console.log(`🏥 Health check at http://localhost:${PORT}/api/health`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 // Export the app
 module.exports = app; 
