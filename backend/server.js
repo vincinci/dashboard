@@ -10,6 +10,7 @@ const uploadRouter = require('./routes/upload');
 const adminRouter = require('./routes/admin');
 const healthRouter = require('./routes/health');
 const debugRouter = require('./routes/debug');
+const shopifyRouter = require('./routes/shopify');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -93,7 +94,8 @@ app.get('/', (req, res) => {
       auth: '/api/auth',
       products: '/api/products',
       upload: '/api/upload',
-      admin: '/api/admin'
+      admin: '/api/admin',
+      shopify: '/api/shopify'
     }
   });
 });
@@ -104,6 +106,7 @@ app.use('/api/products', productsRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/debug', debugRouter);
+app.use('/api/shopify', shopifyRouter);
 
 // Error handling for CORS
 app.use((err, req, res, next) => {
@@ -147,7 +150,8 @@ app.use('*', (req, res) => {
       '/api/auth',
       '/api/products',
       '/api/upload',
-      '/api/admin'
+      '/api/admin',
+      '/api/shopify'
     ]
   });
 });

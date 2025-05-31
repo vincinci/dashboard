@@ -30,26 +30,45 @@ model User {
   
   // Relations
   products                    Product[]
+  shopifyConnections          ShopifyConnection[]
 }
 
 model Product {
-  id          String   @id @default(uuid())
-  name        String
-  description String
-  price       Float
-  category    String
-  quantity    Int      @default(0)
-  sku         String?
-  status      String   @default("active")
-  images      String?  // JSON string array of image URLs
-  delivery    Boolean  @default(false)
-  pickup      String?  // Pickup location
-  sizes       String?  // JSON string array of available sizes
-  colors      String?  // JSON string array of available colors
-  vendorId    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String    @id @default(uuid())
+  name              String
+  description       String
+  price             Float
+  category          String
+  quantity          Int       @default(0)
+  sku               String?
+  status            String    @default("active")
+  images            String?   // JSON string array of image URLs
+  delivery          Boolean   @default(false)
+  pickup            String?   // Pickup location
+  sizes             String?   // JSON string array of available sizes
+  colors            String?   // JSON string array of available colors
+  vendorId          String
+  shopifyProductId  String?   // Shopify product ID when synced
+  lastSyncedAt      DateTime? // Last time product was synced to Shopify
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
   
   // Relations
-  vendor      User     @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  vendor            User      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+}
+
+model ShopifyConnection {
+  id               String    @id @default(uuid())
+  vendorId         String
+  shopifyStoreUrl  String    // Store URL without https:// (e.g., mystore.myshopify.com)
+  accessToken      String    // Shopify API access token
+  isActive         Boolean   @default(true)
+  lastSyncAt       DateTime? // Last time products were synced
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  // Relations
+  vendor           User      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  
+  @@unique([vendorId]) // One connection per vendor
 } 
