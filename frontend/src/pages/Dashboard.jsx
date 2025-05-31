@@ -158,34 +158,28 @@ const Dashboard = () => {
       return;
     }
 
-    // Define CSV headers
+    // Define simple CSV headers for basic product information
     const headers = [
-      'ID',
       'Name',
+      'Category', 
       'Description',
-      'Price (RWF)',
-      'Category',
-      'Stock Quantity',
-      'SKU',
-      'Status',
-      'Images Count',
-      'Created Date',
-      'Updated Date'
+      'Price',
+      'Quantity',
+      'Delivery',
+      'Pickup',
+      'Status'
     ];
 
-    // Convert products to CSV format
+    // Convert products to CSV format with basic fields only
     const csvData = products.map(product => [
-      product.id || '',
       product.name || '',
+      product.category || '',
       product.description ? product.description.replace(/"/g, '""') : '', // Escape quotes
       product.price || '0',
-      product.category || '',
-      product.stockQuantity || '0',
-      product.sku || '',
-      product.status || 'active',
-      product.images ? product.images.length : '0',
-      product.createdAt ? new Date(product.createdAt).toLocaleDateString() : '',
-      product.updatedAt ? new Date(product.updatedAt).toLocaleDateString() : ''
+      product.quantity || '0',
+      product.delivery ? 'Yes' : 'No',
+      product.pickup || '',
+      product.status || 'active'
     ]);
 
     // Create CSV content
@@ -206,7 +200,7 @@ const Dashboard = () => {
     const url = URL.createObjectURL(blob);
     
     link.setAttribute('href', url);
-    link.setAttribute('download', `products_${vendorName}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `products_export_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     
     document.body.appendChild(link);
