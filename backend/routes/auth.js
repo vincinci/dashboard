@@ -92,7 +92,7 @@ router.post('/register', async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, isAdmin: user.isAdmin },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -140,7 +140,7 @@ router.post('/login', async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, isAdmin: user.isAdmin },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
