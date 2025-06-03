@@ -10,6 +10,17 @@ async function migrateProductionDB() {
     console.log('📋 Adding missing columns to Product table...');
     
     const migrations = [
+      // Ensure vendorId column exists (rename userId to vendorId if needed)
+      `DO $$
+       BEGIN
+         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'Product' AND column_name = 'userId') THEN
+           ALTER TABLE "Product" RENAME COLUMN "userId" TO "vendorId";
+         END IF;
+       END $$;`,
+      
+      // Add vendorId column if it doesn't exist
+      `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "vendorId" TEXT;`,
+      
       // Add sizes column if it doesn't exist
       `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "sizes" TEXT;`,
       
@@ -66,6 +77,33 @@ async function migrateProductionDB() {
     } catch (error) {
       if (!error.message.includes('already exists')) {
         console.warn('⚠️  ShopifyConnection table warning:', error.message);
+      }
+    }
+    
+    // Ensure foreign key constraint exists for vendorId
+    console.log('📋 Ensuring Product.vendorId foreign key constraint...');
+    
+    const addForeignKey = `
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints 
+          WHERE constraint_name = 'Product_vendorId_fkey' 
+          AND table_name = 'Product'
+        ) THEN
+          ALTER TABLE "Product" 
+          ADD CONSTRAINT "Product_vendorId_fkey" 
+          FOREIGN KEY ("vendorId") REFERENCES "User"("id") ON DELETE CASCADE;
+        END IF;
+      END $$;
+    `;
+    
+    try {
+      await prisma.$executeRawUnsafe(addForeignKey);
+      console.log('✅ Product.vendorId foreign key constraint ensured');
+    } catch (error) {
+      if (!error.message.includes('already exists')) {
+        console.warn('⚠️  Foreign key constraint warning:', error.message);
       }
     }
     
