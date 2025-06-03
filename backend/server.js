@@ -63,8 +63,12 @@ app.use(cors({
       origin.includes('fasts-projects-5b1e7db1.vercel.app') ||
       origin.includes('vincincis-projects.vercel.app') ||
       origin.includes('vincinci.vercel.app') ||
-      origin.includes('dashboard') && origin.includes('vercel.app')
+      (origin.includes('dashboard') && origin.includes('vercel.app')) ||
+      origin.includes('vercel.app') // More permissive for all vercel deployments
     );
+    
+    // Debug logging
+    console.log('CORS check:', { origin, isVercelURL, nodeEnv: process.env.NODE_ENV });
     
     if (!origin || origins.includes(origin) || isVercelURL) {
       callback(null, true);
