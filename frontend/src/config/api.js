@@ -4,7 +4,7 @@ const API_CONFIG = {
   DEV_API_PORT: process.env.REACT_APP_API_PORT || '3001',
   DEV_FRONTEND_PORT: process.env.REACT_APP_FRONTEND_PORT || '3003',
   
-  // Production URLs
+  // Production URLs - Backend hosted on Render
   PROD_API_URL: process.env.REACT_APP_PROD_API_URL || 'https://iwanyu-api.onrender.com/api',
   
   // Get base URL based on environment
@@ -13,6 +13,7 @@ const API_CONFIG = {
     let baseURL;
     
     if (isProduction) {
+      // For production, use Render backend
       baseURL = API_CONFIG.PROD_API_URL;
     } else {
       // For development, use dynamic port

@@ -25,7 +25,7 @@
     "db:emergency": "node scripts/emergency-db-init.js"
   },
   "dependencies": {
-    "@prisma/client": "^5.6.0",
+    "@prisma/client": "^6.3.1",
     "@shopify/shopify-api": "^11.12.0",
     "@stackframe/stack": "^2.8.12",
     "@vercel/blob": "^1.1.1",
@@ -44,6 +44,6 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
-    "prisma": "^5.6.0"
+    "prisma": "^6.3.1"
   }
 }
