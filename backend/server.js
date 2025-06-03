@@ -123,6 +123,7 @@ app.get('/', (req, res) => {
       products: '/api/products',
       upload: '/api/upload',
       admin: '/api/admin',
+      debug: '/api/debug',
       shopify: '/api/shopify'
     }
   });
@@ -179,6 +180,7 @@ app.use('*', (req, res) => {
       '/api/products',
       '/api/upload',
       '/api/admin',
+      '/api/debug',
       '/api/shopify'
     ]
   });
