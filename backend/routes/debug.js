@@ -465,4 +465,34 @@ router.get('/test-product-creation', async (req, res) => {
   }
 });
 
+// GET /api/debug/headers - Check what headers are being sent by frontend
+router.get('/headers', (req, res) => {
+  try {
+    console.log('📨 Headers debug request received');
+    console.log('All headers:', req.headers);
+    
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    res.json({
+      status: 'success',
+      headers: {
+        authorization: req.headers['authorization'] || 'MISSING',
+        'content-type': req.headers['content-type'] || 'NOT_SET',
+        origin: req.headers['origin'] || 'NOT_SET',
+        referer: req.headers['referer'] || 'NOT_SET',
+        'user-agent': req.headers['user-agent'] || 'NOT_SET'
+      },
+      token: token ? 'TOKEN_PRESENT' : 'NO_TOKEN',
+      hasToken: !!token,
+      tokenLength: token ? token.length : 0
+    });
+  } catch (error) {
+    res. status(500).json({
+      status: 'error',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router; 
