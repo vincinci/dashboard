@@ -378,4 +378,91 @@ router.post('/init-database', async (req, res) => {
   }
 });
 
+// GET /api/debug/test-product-creation - Test product creation without auth
+router.get('/test-product-creation', async (req, res) => {
+  try {
+    console.log('🧪 Testing product creation...');
+    
+    // First check if we can query the Product table structure
+    console.log('📋 Checking Product table structure...');
+    
+    // Test if all required fields exist
+    const tableInfo = await prisma.$queryRaw`
+      SELECT column_name, data_type, is_nullable 
+      FROM information_schema.columns 
+      WHERE table_name = 'Product' 
+      ORDER BY column_name;
+    `;
+    
+    console.log('📊 Product table columns:', tableInfo);
+    
+    // Check if we have any users to use as vendorId
+    const users = await prisma.user.findMany({
+      take: 1,
+      select: { id: true, email: true }
+    });
+    
+    if (users.length === 0) {
+      return res.status(400).json({
+        status: 'error',
+        error: 'No users found to use as vendorId',
+        tableColumns: tableInfo
+      });
+    }
+    
+    const testUserId = users[0].id;
+    console.log('👤 Using test user ID:', testUserId);
+    
+    // Try to create a test product
+    console.log('🎯 Attempting to create test product...');
+    
+    const testProduct = await prisma.product.create({
+      data: {
+        vendorId: testUserId,
+        name: 'Debug Test Product',
+        category: 'Electronics',
+        description: 'This is a debug test product',
+        price: 100.0,
+        quantity: 1,
+        delivery: true,
+        pickup: null,
+        images: null,
+        sizes: null,
+        colors: null
+      }
+    });
+    
+    console.log('✅ Test product created successfully:', testProduct.id);
+    
+    // Clean up - delete the test product
+    await prisma.product.delete({
+      where: { id: testProduct.id }
+    });
+    
+    console.log('🗑️ Test product cleaned up');
+    
+    res.json({
+      status: 'success',
+      message: 'Product creation test passed',
+      testUserId,
+      tableColumns: tableInfo,
+      createdProduct: {
+        id: testProduct.id,
+        name: testProduct.name,
+        vendorId: testProduct.vendorId
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Product creation test failed:', error);
+    
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      code: error.code,
+      details: error.meta || error.stack
+    });
+  }
+});
+
 module.exports = router; 
