@@ -16,11 +16,35 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy for Render deployment
+app.set('trust proxy', 1);
+
 // Auto-initialize database if tables are missing
 async function initializeDatabaseIfNeeded() {
   try {
     console.log('🔍 Checking database tables...');
     await prisma.user.count();
+    
+    // Check if all required columns exist by testing a product query
+    try {
+      await prisma.product.findFirst({
+        select: {
+          id: true,
+          sizes: true,
+          colors: true,
+          isVerified: true,
+          isApprovedForShopify: true
+        }
+      });
+      console.log('✅ Database schema is up to date');
+    } catch (schemaError) {
+      if (schemaError.code === 'P2022') {
+        console.log('⚠️  Database schema outdated, running migration...');
+        const { migrateProductionDB } = require('./scripts/migrate-production-db');
+        await migrateProductionDB();
+      }
+    }
+    
     console.log('✅ Database tables exist');
   } catch (error) {
     if (error.code === 'P2021' && error.message.includes('does not exist')) {
