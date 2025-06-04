@@ -546,4 +546,62 @@ router.delete('/users/:userId', authenticateToken, requireAdmin, async (req, res
   }
 });
 
+// DELETE /api/admin/products/:productId - Delete a product (Admin only)
+router.delete('/products/:productId', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { productId } = req.params;
+    
+    if (!productId) {
+      return res.status(400).json({ error: 'Product ID is required' });
+    }
+
+    // Check if product exists and get its info before deletion
+    const productToDelete = await prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        price: true,
+        vendor: {
+          select: {
+            id: true,
+            displayName: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    if (!productToDelete) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // Delete the product
+    await prisma.product.delete({
+      where: { id: productId }
+    });
+
+    console.log(`Admin deleted product: ${productToDelete.name} (ID: ${productId}) by vendor: ${productToDelete.vendor.displayName}`);
+
+    res.json({ 
+      message: 'Product deleted successfully',
+      deletedProduct: {
+        id: productToDelete.id,
+        name: productToDelete.name,
+        category: productToDelete.category,
+        price: productToDelete.price,
+        vendor: productToDelete.vendor
+      }
+    });
+
+  } catch (error) {
+    console.error('Delete product error:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
+});
+
 module.exports = router; 

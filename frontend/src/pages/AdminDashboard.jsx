@@ -5,7 +5,6 @@ import Logo from '../components/Logo';
 import DocumentViewer from '../components/DocumentViewer';
 import DeliveryAddressViewer from '../components/DeliveryAddressViewer';
 import ConfirmationModal from '../components/ConfirmationModal';
-import AdminShopifyIntegration from '../components/AdminShopifyIntegration';
 import API_CONFIG from '../config/api';
 
 const AdminDashboard = () => {
@@ -22,7 +21,8 @@ const AdminDashboard = () => {
   const [selectedUserForAddress, setSelectedUserForAddress] = useState(null);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [showShopifyIntegration, setShowShopifyIntegration] = useState(false);
+  const [showProductDeleteModal, setShowProductDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
 
   // Format price in RWF
   const formatRWF = (price) => {
@@ -244,24 +244,41 @@ const AdminDashboard = () => {
   };
 
   const handleRemoveUser = async () => {
-    if (!userToDelete) return;
+    if (userToDelete) {
+      await removeUser(userToDelete.id, userToDelete.displayName);
+      setShowConfirmationModal(false);
+      setUserToDelete(null);
+    }
+  };
 
+  const deleteProduct = async (productId, productName) => {
     try {
-      await axios.delete(API_CONFIG.getURL(`/admin/users/${userToDelete.id}`), {
+      await axios.delete(API_CONFIG.getURL(`/admin/products/${productId}`), {
         timeout: API_CONFIG.TIMEOUT
       });
       
-      // Refresh users list after successful deletion
-      fetchUsers();
+      // Remove product from local state
+      setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+      
+      // Refresh stats to update product count
+      await fetchStats();
+      
       setError('');
+      alert(`Product "${productName}" deleted successfully!`);
     } catch (error) {
-      console.error('Error removing user:', error);
-      const errorMsg = error.response?.data?.error || 
-        (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')
-          ? `Cannot connect to server at ${API_CONFIG.getBaseURL()}`
-          : 'Failed to remove user');
+      console.error('Error deleting product:', error);
+      const errorMsg = error.code === 'ECONNREFUSED' || error.message.includes('Network Error')
+        ? `Cannot connect to server at ${API_CONFIG.getBaseURL()}`
+        : 'Failed to delete product';
       setError(errorMsg);
-      throw error; // Re-throw to let modal handle the error state
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (productToDelete) {
+      await deleteProduct(productToDelete.id, productToDelete.name);
+      setShowProductDeleteModal(false);
+      setProductToDelete(null);
     }
   };
 
@@ -332,7 +349,6 @@ const AdminDashboard = () => {
               { id: 'overview', name: 'Overview' },
               { id: 'users', name: 'Users' },
               { id: 'products', name: 'Products' },
-              { id: 'shopify', name: 'Shopify' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -610,6 +626,7 @@ const AdminDashboard = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Delivery</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -646,27 +663,24 @@ const AdminDashboard = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(product.createdAt).toLocaleDateString()}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            onClick={() => {
+                              setProductToDelete({ id: product.id, name: product.name });
+                              setShowProductDeleteModal(true);
+                            }}
+                            className="inline-flex items-center text-red-600 hover:text-red-900 hover:bg-red-50 text-xs font-medium px-2 py-1 rounded border border-red-200 hover:border-red-300 transition-all"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Delete
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'shopify' && (
-            <div className="bg-white shadow rounded-lg p-6">
-              <div className="text-center">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Shopify Integration</h3>
-                <p className="text-gray-600 mb-6">
-                  Manage product verification and sync approved vendor products to your Shopify store.
-                </p>
-                <button
-                  onClick={() => setShowShopifyIntegration(true)}
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  🛍️ Open Shopify Management
-                </button>
               </div>
             </div>
           )}
@@ -702,9 +716,18 @@ const AdminDashboard = () => {
         />
       )}
 
-      {showShopifyIntegration && (
-        <AdminShopifyIntegration
-          onClose={() => setShowShopifyIntegration(false)}
+      {showProductDeleteModal && (
+        <ConfirmationModal
+          isOpen={showProductDeleteModal}
+          onClose={() => {
+            setShowProductDeleteModal(false);
+            setProductToDelete(null);
+          }}
+          onConfirm={handleDeleteProduct}
+          title="Delete Product"
+          message={`Are you sure you want to delete "${productToDelete?.name}"? This action cannot be undone.`}
+          confirmText="DELETE"
+          confirmButtonText="Delete Product"
         />
       )}
     </div>
