@@ -36,10 +36,10 @@ router.get('/', authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Parse images from comma-separated strings to arrays
+    // Parse images from simple string to arrays for frontend compatibility
     const productsWithParsedImages = products.map(product => ({
       ...product,
-      images: product.images && product.images.trim() ? product.images.split(',').map(img => img.trim()) : []
+      images: product.images ? [product.images] : []
     }));
 
     // Include simple pagination data for frontend compatibility
@@ -66,8 +66,13 @@ router.post('/', authenticateToken, async (req, res) => {
     const vendorId = req.user.userId;
     const { name, category, description, price, quantity, images, delivery, pickup } = req.body;
 
+    console.log('=== PRODUCT CREATION DEBUG ===');
+    console.log('Request body:', req.body);
+    console.log('Vendor ID:', vendorId);
+
     // Validate required fields
     if (!name || !category || !description || price === undefined || quantity === undefined || delivery === undefined) {
+      console.log('Missing required fields');
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -80,67 +85,61 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Product limit reached. Maximum 10 products allowed per vendor.' });
     }
 
-    // Validate and sanitize images array - use comma-separated string instead of JSON
+    // Process images - keep it simple with just the first image for now
     let processedImages = null;
-    
-    if (images !== undefined && images !== null) {
-      if (Array.isArray(images)) {
-        // Process array of image URLs
-        const validImages = images
-          .filter(img => img && typeof img === 'string' && img.trim().length > 0)
-          .map(img => img.trim())
-          .slice(0, 10); // Limit to 10 images max
-        
-        processedImages = validImages.length > 0 ? validImages.join(',') : null;
-      } else if (typeof images === 'string' && images.trim().length > 0) {
-        // Handle single image URL passed as string
-        processedImages = images.trim();
-      }
-      // If images is empty array, empty string, or invalid type, keep processedImages as null
+    if (images && Array.isArray(images) && images.length > 0 && images[0]) {
+      processedImages = images[0]; // Just take the first image as a simple string
     }
 
-    console.log('Creating product with processed images:', processedImages);
-    console.log('All product data:', {
+    console.log('Processed first image only:', processedImages);
+
+    // Create product data object
+    const productData = {
       vendorId,
       name,
       category,
       description,
       price: parseFloat(price),
       quantity: parseInt(quantity),
-      // images: processedImages,  // Temporarily disabled
       delivery,
       pickup: pickup || null
-    });
+    };
+
+    // Only add images if we have a valid one
+    if (processedImages) {
+      productData.images = processedImages;
+    }
+
+    console.log('Final product data:', productData);
 
     // Create product
     const product = await prisma.product.create({
-      data: {
-        vendorId,
-        name,
-        category,
-        description,
-        price: parseFloat(price),
-        quantity: parseInt(quantity),
-        // images: processedImages,  // Temporarily disabled
-        delivery,
-        pickup: pickup || null
-      }
+      data: productData
     });
 
-    // Parse comma-separated string back to array for response
+    console.log('Product created successfully:', product.id);
+
+    // Prepare response product (convert images back to array format for frontend)
     const responseProduct = {
       ...product,
-      images: product.images ? product.images.split(',') : []
+      images: product.images ? [product.images] : []
     };
 
     res.status(201).json(responseProduct);
   } catch (error) {
-    console.error('Detailed error creating product:', error);
+    console.error('=== PRODUCT CREATION ERROR ===');
+    console.error('Full error:', error);
+    console.error('Error name:', error.name);
     console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
     if (error.code) console.error('Error code:', error.code);
     if (error.meta) console.error('Error meta:', error.meta);
-    res.status(500).json({ error: 'Failed to create product', details: error.message });
+    if (error.stack) console.error('Error stack:', error.stack);
+    
+    res.status(500).json({ 
+      error: 'Failed to create product', 
+      details: error.message,
+      code: error.code || 'UNKNOWN'
+    });
   }
 });
 
@@ -166,13 +165,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
     // Validate and sanitize images array if provided
     let processedImages = undefined;
     if (images !== undefined) {
-      if (images && Array.isArray(images) && images.length > 0) {
-        // Ensure images is a simple array of strings (URLs)
-        const validImages = images
-          .filter(img => typeof img === 'string' && img.trim().length > 0)
-          .slice(0, 10); // Limit to 10 images max
-        
-        processedImages = validImages.length > 0 ? validImages.join(',') : null;
+      if (images && Array.isArray(images) && images.length > 0 && images[0]) {
+        processedImages = images[0]; // Just take the first image as a simple string
       } else {
         processedImages = null;
       }
@@ -193,10 +187,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
       }
     });
 
-    // Parse comma-separated string back to array for response
+    // Parse images for response
     const responseProduct = {
       ...updatedProduct,
-      images: updatedProduct.images ? updatedProduct.images.split(',') : []
+      images: updatedProduct.images ? [updatedProduct.images] : []
     };
 
     res.json(responseProduct);
