@@ -107,7 +107,7 @@ router.post('/', authenticateToken, async (req, res) => {
       description,
       price: parseFloat(price),
       quantity: parseInt(quantity),
-      images: processedImages,
+      // images: processedImages,  // Temporarily disabled
       delivery,
       pickup: pickup || null
     });
@@ -121,7 +121,7 @@ router.post('/', authenticateToken, async (req, res) => {
         description,
         price: parseFloat(price),
         quantity: parseInt(quantity),
-        images: processedImages,
+        // images: processedImages,  // Temporarily disabled
         delivery,
         pickup: pickup || null
       }
