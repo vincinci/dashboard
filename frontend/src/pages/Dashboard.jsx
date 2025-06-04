@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import ProductCard from '../components/ProductCard';
 import ProductForm from '../components/ProductForm';
-import CSVImport from '../components/CSVImport';
 import Logo from '../components/Logo';
 import API_CONFIG from '../config/api';
 
@@ -13,7 +12,6 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [showCSVImport, setShowCSVImport] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -128,13 +126,6 @@ const Dashboard = () => {
     setEditingProduct(null);
   };
 
-  const handleCSVImportComplete = (importResult) => {
-    showMessage('success', `CSV Import completed! ${importResult.summary.success} products imported successfully.`);
-    setShowCSVImport(false);
-    // Refresh products to show newly imported items
-    fetchProducts(pagination.currentPage);
-  };
-
   const isLimitReached = products.length >= PRODUCT_LIMIT;
 
   const handleLogout = () => {
@@ -147,65 +138,6 @@ const Dashboard = () => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
       fetchProducts(newPage);
     }
-  };
-
-  // CSV Export Function
-  const exportToCSV = () => {
-    if (products.length === 0) {
-      showMessage('error', 'No products to export');
-      return;
-    }
-
-    // Define simple CSV headers for basic product information
-    const headers = [
-      'Name',
-      'Category', 
-      'Description',
-      'Price',
-      'Quantity',
-      'Delivery',
-      'Pickup',
-      'Status'
-    ];
-
-    // Convert products to CSV format with basic fields only
-    const csvData = products.map(product => [
-      product.name || '',
-      product.category || '',
-      product.description ? product.description.replace(/"/g, '""') : '', // Escape quotes
-      product.price || '0',
-      product.quantity || '0',
-      product.delivery ? 'Yes' : 'No',
-      product.pickup || '',
-      product.status || 'active'
-    ]);
-
-    // Create CSV content
-    const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => 
-        row.map(field => 
-          typeof field === 'string' && field.includes(',') 
-            ? `"${field}"` 
-            : field
-        ).join(',')
-      )
-    ].join('\n');
-
-    // Create and download file
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', `products_export_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    showMessage('success', `Exported ${products.length} products to CSV`);
   };
 
   if (loading) {
@@ -295,18 +227,6 @@ const Dashboard = () => {
               className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${isLimitReached ? 'bg-gray-400 cursor-not-allowed' : 'bg-yellow-600 hover:bg-yellow-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 w-full sm:w-auto justify-center`}
             >
               Add New Product
-            </button>
-            <button
-              onClick={() => setShowCSVImport(true)}
-              className="inline-flex items-center px-4 py-2 border border-yellow-600 text-sm font-medium rounded-md text-yellow-600 bg-white hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 w-full sm:w-auto justify-center"
-            >
-              📥 Import CSV
-            </button>
-            <button
-              onClick={exportToCSV}
-              className="inline-flex items-center px-4 py-2 border border-yellow-600 text-sm font-medium rounded-md text-yellow-600 bg-white hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 w-full sm:w-auto justify-center"
-            >
-              📤 Export CSV
             </button>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -433,14 +353,6 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* CSV Import Modal */}
-      {showCSVImport && (
-        <CSVImport
-          onImportComplete={handleCSVImportComplete}
-          onClose={() => setShowCSVImport(false)}
-        />
       )}
     </div>
   );
