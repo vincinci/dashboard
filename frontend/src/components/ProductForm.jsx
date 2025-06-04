@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import ImageUpload from './ImageUpload';
-import SizeColorInput from './SizeColorInput';
 
 const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
   const [formData, setFormData] = useState({
@@ -11,9 +10,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
     quantity: '',
     delivery: false,
     pickup: '',
-    images: [],
-    sizes: [],
-    colors: []
+    images: []
   });
   
   const [errors, setErrors] = useState({});
@@ -21,42 +18,16 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
 
   const categories = [
     'Electronics',
-    'Clothing Collection',
+    'Clothing',
     'Shoes',
     'Accessories',
-    'Bags & Backpacks',
-    'Food & Beverages',
-    'Home & Garden',
-    'Beauty & Health',
-    'Books & Media',
-    'Sports & Outdoors',
-    'Toys & Games',
-    'Automotive',
-    'Services',
-    'Smartphones',
-    'Laptops'
-  ];
-
-  // Categories that typically need size options
-  const categoriesWithSizes = [
-    'Clothing Collection',
-    'Shoes',
-    'Accessories',
-    'Bags & Backpacks',
-    'Sports & Outdoors'
-  ];
-
-  // Categories that typically need color options
-  const categoriesWithColors = [
-    'Clothing Collection', 
-    'Shoes',
-    'Accessories',
-    'Bags & Backpacks',
-    'Electronics',
-    'Smartphones',
-    'Beauty & Health',
-    'Sports & Outdoors',
-    'Automotive'
+    'Food',
+    'Home',
+    'Beauty',
+    'Books',
+    'Sports',
+    'Toys',
+    'Other'
   ];
 
   useEffect(() => {
@@ -69,9 +40,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
         quantity: product.quantity?.toString() || '',
         delivery: product.delivery || false,
         pickup: product.pickup || '',
-        images: product.images || [],
-        sizes: product.sizes || [],
-        colors: product.colors || []
+        images: product.images || []
       });
     }
   }, [product]);
@@ -81,8 +50,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
 
     if (!formData.name.trim()) {
       newErrors.name = 'Product name is required';
-    } else if (formData.name.length < 3) {
-      newErrors.name = 'Product name must be at least 3 characters';
     }
 
     if (!formData.category) {
@@ -91,8 +58,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
 
     if (!formData.description.trim()) {
       newErrors.description = 'Description is required';
-    } else if (formData.description.length < 10) {
-      newErrors.description = 'Description must be at least 10 characters';
     }
 
     const price = parseFloat(formData.price);
@@ -144,7 +109,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
       [name]: type === 'checkbox' ? checked : value
     }));
     
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -180,7 +144,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
   return (
     <div className="w-full bg-white">
       <form onSubmit={handleSubmit} className="flex flex-col divide-y divide-gray-200">
-        {/* Header */}
         <div className="px-6 py-5">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">
@@ -199,216 +162,169 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
           </div>
         </div>
 
-        {/* Form Content */}
-        <div className="px-6 py-5 flex-1 overflow-y-auto max-h-[calc(100vh-200px)]">
-          <div className="space-y-6">
-            {/* Product Name */}
+        {errors.submit && (
+          <div className="px-6 py-4 bg-red-50 border-b border-red-200">
+            <p className="text-sm text-red-600">{errors.submit}</p>
+          </div>
+        )}
+
+        <div className="px-6 py-6 space-y-6">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+              Product Name *
+            </label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.name ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Enter product name"
+            />
+            {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+              Category *
+            </label>
+            <select
+              id="category"
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.category ? 'border-red-500' : 'border-gray-300'
+              }`}
+            >
+              <option value="">Select a category</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+              Description *
+            </label>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              rows={3}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.description ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Enter product description"
+            />
+            {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Product Name *
+              <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
+                Price ($) *
               </label>
               <input
-                type="text"
-                name="name"
-                value={formData.name}
+                type="number"
+                id="price"
+                name="price"
+                value={formData.price}
                 onChange={handleChange}
-                className={`mt-1 block w-full px-4 py-3 text-base rounded-md shadow-sm ${
-                  errors.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-yellow-500 focus:ring-yellow-500'
+                step="0.01"
+                min="0"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.price ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter product name"
+                placeholder="0.00"
               />
-              {errors.name && <p className="mt-2 text-sm text-red-600">{errors.name}</p>}
+              {errors.price && <p className="mt-1 text-sm text-red-600">{errors.price}</p>}
             </div>
 
-            {/* Category */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category *
+              <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
+                Quantity *
               </label>
-              <select
-                name="category"
-                value={formData.category}
+              <input
+                type="number"
+                id="quantity"
+                name="quantity"
+                value={formData.quantity}
                 onChange={handleChange}
-                className={`mt-1 block w-full px-4 py-3 text-base rounded-md shadow-sm ${
-                  errors.category ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-yellow-500 focus:ring-yellow-500'
+                min="0"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.quantity ? 'border-red-500' : 'border-gray-300'
                 }`}
-              >
-                <option value="">Select a category</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-              {errors.category && <p className="mt-2 text-sm text-red-600">{errors.category}</p>}
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description *
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={4}
-                className={`mt-1 block w-full px-4 py-3 text-base rounded-md shadow-sm ${
-                  errors.description ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-yellow-500 focus:ring-yellow-500'
-                }`}
-                placeholder="Describe your product..."
+                placeholder="0"
               />
-              {errors.description && <p className="mt-2 text-sm text-red-600">{errors.description}</p>}
+              {errors.quantity && <p className="mt-1 text-sm text-red-600">{errors.quantity}</p>}
             </div>
+          </div>
 
-            {/* Sizes - Show only for relevant categories */}
-            {categoriesWithSizes.includes(formData.category) && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Available Sizes
-                </label>
-                <SizeColorInput
-                  type="sizes"
-                  values={formData.sizes}
-                  onChange={(sizes) => setFormData(prev => ({ ...prev, sizes }))}
-                  placeholder="Add size (e.g., S, M, L, XL, 42, 43, etc.)"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Add sizes that apply to your product. Press Enter to add each size.
-                </p>
-              </div>
-            )}
+          <div>
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                name="delivery"
+                checked={formData.delivery}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <span className="ml-2 text-sm text-gray-700">Delivery Available</span>
+            </label>
+          </div>
 
-            {/* Colors - Show only for relevant categories */}
-            {categoriesWithColors.includes(formData.category) && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Available Colors
-                </label>
-                <SizeColorInput
-                  type="colors"
-                  values={formData.colors}
-                  onChange={(colors) => setFormData(prev => ({ ...prev, colors }))}
-                  placeholder="Add color (e.g., Red, Blue, Black, etc.)"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Add colors available for your product. Press Enter to add each color.
-                </p>
-              </div>
-            )}
+          <div>
+            <label htmlFor="pickup" className="block text-sm font-medium text-gray-700 mb-1">
+              Pickup Location {!formData.delivery && '*'}
+            </label>
+            <input
+              type="text"
+              id="pickup"
+              name="pickup"
+              value={formData.pickup}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.pickup ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Enter pickup location"
+            />
+            {errors.pickup && <p className="mt-1 text-sm text-red-600">{errors.pickup}</p>}
+          </div>
 
-            {/* Price and Quantity */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Price (RWF) *
-                </label>
-                <input
-                  type="number"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleChange}
-                  min="0"
-                  step="1"
-                  className={`mt-1 block w-full px-4 py-3 text-base rounded-md shadow-sm ${
-                    errors.price ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-yellow-500 focus:ring-yellow-500'
-                  }`}
-                  placeholder="0"
-                />
-                {errors.price && <p className="mt-2 text-sm text-red-600">{errors.price}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Quantity *
-                </label>
-                <input
-                  type="number"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  min="0"
-                  step="1"
-                  className={`mt-1 block w-full px-4 py-3 text-base rounded-md shadow-sm ${
-                    errors.quantity ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-yellow-500 focus:ring-yellow-500'
-                  }`}
-                  placeholder="0"
-                />
-                {errors.quantity && <p className="mt-2 text-sm text-red-600">{errors.quantity}</p>}
-              </div>
-            </div>
-
-            {/* Delivery Options */}
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="delivery"
-                  checked={formData.delivery}
-                  onChange={handleChange}
-                  className="h-5 w-5 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded"
-                />
-                <label className="ml-3 block text-base text-gray-700">
-                  Offers Delivery
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pickup Location
-                </label>
-                <input
-                  type="text"
-                  name="pickup"
-                  value={formData.pickup}
-                  onChange={handleChange}
-                  className={`mt-1 block w-full px-4 py-3 text-base rounded-md shadow-sm ${
-                    errors.pickup ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-yellow-500 focus:ring-yellow-500'
-                  }`}
-                  placeholder="Enter pickup location"
-                />
-                {errors.pickup && <p className="mt-2 text-sm text-red-600">{errors.pickup}</p>}
-              </div>
-            </div>
-
-            {/* Image Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Product Images
-              </label>
-              <div className="mt-1">
-                <ImageUpload
-                  images={formData.images}
-                  onChange={handleImagesChange}
-                  maxImages={5}
-                />
-              </div>
-            </div>
-
-            {errors.submit && (
-              <div className="rounded-md bg-red-50 p-4">
-                <p className="text-sm text-red-600">{errors.submit}</p>
-              </div>
-            )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Product Images
+            </label>
+            <ImageUpload
+              images={formData.images}
+              onChange={handleImagesChange}
+              maxImages={5}
+            />
           </div>
         </div>
 
-        {/* Form Actions */}
-        <div className="px-6 py-4 bg-gray-50">
-          <div className="flex flex-row-reverse gap-3">
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50"
-            >
-              {loading ? 'Processing...' : product ? 'Save Changes' : 'Add Product'}
-            </button>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-            >
-              Cancel
-            </button>
-          </div>
+        <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            {loading ? 'Saving...' : (product ? 'Update Product' : 'Add Product')}
+          </button>
         </div>
       </form>
     </div>

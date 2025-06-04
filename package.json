@@ -24,7 +24,6 @@
     "node": "18.x"
   },
   "dependencies": {
-    "@shopify/shopify-api": "^11.12.0",
     "axios": "^1.9.0"
   }
 }
