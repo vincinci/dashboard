@@ -135,9 +135,12 @@ router.post('/', authenticateToken, async (req, res) => {
 
     res.status(201).json(responseProduct);
   } catch (error) {
-    console.error('Error creating product:', error);
-    console.error('Request body:', req.body);
-    res.status(500).json({ error: 'Failed to create product' });
+    console.error('Detailed error creating product:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    if (error.code) console.error('Error code:', error.code);
+    if (error.meta) console.error('Error meta:', error.meta);
+    res.status(500).json({ error: 'Failed to create product', details: error.message });
   }
 });
 
