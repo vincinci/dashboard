@@ -36,15 +36,9 @@ router.get('/', authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Parse images from simple string to arrays for frontend compatibility
-    const productsWithParsedImages = products.map(product => ({
-      ...product,
-      images: product.images ? [product.images] : []
-    }));
-
-    // Include simple pagination data for frontend compatibility
+    // Images are now stored as String[] so they're already arrays
     const response = {
-      products: productsWithParsedImages,
+      products: products,
       pagination: {
         total: products.length,
         pages: 1,
@@ -85,13 +79,15 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Product limit reached. Maximum 10 products allowed per vendor.' });
     }
 
-    // Process images - keep it simple with just the first image for now
-    let processedImages = null;
-    if (images && Array.isArray(images) && images.length > 0 && images[0]) {
-      processedImages = images[0]; // Just take the first image as a simple string
+    // Process images - handle as array
+    let processedImages = [];
+    if (images && Array.isArray(images)) {
+      processedImages = images
+        .filter(img => typeof img === 'string' && img.trim().length > 0)
+        .slice(0, 10); // Limit to 10 images max
     }
 
-    console.log('Processed first image only:', processedImages);
+    console.log('Processed images array:', processedImages);
 
     // Create product data object
     const productData = {
@@ -102,13 +98,9 @@ router.post('/', authenticateToken, async (req, res) => {
       price: parseFloat(price),
       quantity: parseInt(quantity),
       delivery,
-      pickup: pickup || null
+      pickup: pickup || null,
+      images: processedImages  // Store as array directly
     };
-
-    // Only add images if we have a valid one
-    if (processedImages) {
-      productData.images = processedImages;
-    }
 
     console.log('Final product data:', productData);
 
@@ -119,13 +111,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     console.log('Product created successfully:', product.id);
 
-    // Prepare response product (convert images back to array format for frontend)
-    const responseProduct = {
-      ...product,
-      images: product.images ? [product.images] : []
-    };
-
-    res.status(201).json(responseProduct);
+    res.status(201).json(product);
   } catch (error) {
     console.error('=== PRODUCT CREATION ERROR ===');
     console.error('Full error:', error);
@@ -162,13 +148,15 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Product not found or access denied' });
     }
 
-    // Validate and sanitize images array if provided
+    // Process images - handle as array
     let processedImages = undefined;
     if (images !== undefined) {
-      if (images && Array.isArray(images) && images.length > 0 && images[0]) {
-        processedImages = images[0]; // Just take the first image as a simple string
+      if (images && Array.isArray(images)) {
+        processedImages = images
+          .filter(img => typeof img === 'string' && img.trim().length > 0)
+          .slice(0, 10); // Limit to 10 images max
       } else {
-        processedImages = null;
+        processedImages = [];
       }
     }
 
@@ -187,13 +175,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       }
     });
 
-    // Parse images for response
-    const responseProduct = {
-      ...updatedProduct,
-      images: updatedProduct.images ? [updatedProduct.images] : []
-    };
-
-    res.json(responseProduct);
+    res.json(updatedProduct);
   } catch (error) {
     console.error('Error updating product:', error);
     res.status(500).json({ error: 'Failed to update product' });

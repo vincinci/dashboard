@@ -42,7 +42,7 @@ model Product {
   quantity          Int       @default(0)
   sku               String?
   status            String    @default("active")
-  images            String?   // JSON string array of image URLs
+  images            String[]  @default([])  // Array of image URLs - changed from String? to String[]
   delivery          Boolean   @default(false)
   pickup            String?   // Pickup location
   sizes             String?   // JSON string array of available sizes
