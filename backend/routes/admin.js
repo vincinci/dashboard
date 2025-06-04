@@ -43,6 +43,28 @@ const requireAdmin = async (req, res, next) => {
   }
 };
 
+// GET /api/admin/stats - Get dashboard statistics
+router.get('/stats', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const totalUsers = await prisma.user.count();
+    const totalProducts = await prisma.product.count();
+    const activeUsers = await prisma.user.count({
+      where: { isAdmin: false }
+    });
+
+    const stats = {
+      totalUsers,
+      totalProducts,
+      activeUsers
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/admin/users - Get all users (simplified)
 router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
@@ -191,28 +213,6 @@ router.delete('/products/:productId', authenticateToken, requireAdmin, async (re
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete product' });
-  }
-});
-
-// GET /api/admin/stats - Get dashboard statistics
-router.get('/stats', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const totalUsers = await prisma.user.count();
-    const totalProducts = await prisma.product.count();
-    const activeUsers = await prisma.user.count({
-      where: { isAdmin: false }
-    });
-
-    const stats = {
-      totalUsers,
-      totalProducts,
-      activeUsers
-    };
-
-    res.json(stats);
-  } catch (error) {
-    console.error('Error fetching stats:', error);
-    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
