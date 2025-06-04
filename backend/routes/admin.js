@@ -170,6 +170,110 @@ router.get('/export', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/admin/export-shopify - Shopify-compatible export using template format
+router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      include: {
+        vendor: {
+          select: {
+            displayName: true,
+            businessName: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Shopify CSV headers based on the template
+    const headers = [
+      'Handle', 'Title', 'Body (HTML)', 'Vendor', 'Product Category', 'Type', 'Tags',
+      'Published', 'Option1 Name', 'Option1 Value', 'Option2 Name', 'Option2 Value',
+      'Option3 Name', 'Option3 Value', 'Variant SKU', 'Variant Grams', 'Variant Inventory Tracker',
+      'Variant Inventory Qty', 'Variant Inventory Policy', 'Variant Fulfillment Service',
+      'Variant Price', 'Variant Compare At Price', 'Variant Requires Shipping', 'Variant Taxable',
+      'Variant Barcode', 'Image Src', 'Image Position', 'Image Alt Text', 'Gift Card',
+      'SEO Title', 'SEO Description', 'Google Shopping / Google Product Category',
+      'Google Shopping / Gender', 'Google Shopping / Age Group', 'Google Shopping / MPN',
+      'Google Shopping / Condition', 'Google Shopping / Custom Product', 'Variant Image',
+      'Variant Weight Unit', 'Variant Tax Code', 'Cost per item', 'Included / United States',
+      'Price / United States', 'Compare At Price / United States', 'Included / International',
+      'Price / International', 'Compare At Price / International', 'Status'
+    ];
+
+    const csvRows = products.map(product => {
+      const handle = product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const vendor = product.vendor.businessName || product.vendor.displayName || 'Unknown';
+      const images = product.images ? JSON.parse(product.images) : [];
+      const firstImage = images.length > 0 ? images[0] : '';
+      
+      return [
+        handle,                           // Handle
+        product.name,                     // Title
+        `<p>${product.description}</p>`,  // Body (HTML)
+        vendor,                           // Vendor
+        product.category,                 // Product Category
+        product.category,                 // Type
+        'Dashboard Import',               // Tags
+        'TRUE',                          // Published
+        'Title',                         // Option1 Name
+        'Default Title',                 // Option1 Value
+        '',                              // Option2 Name
+        '',                              // Option2 Value
+        '',                              // Option3 Name
+        '',                              // Option3 Value
+        product.id.substring(0, 8),      // Variant SKU
+        '0',                             // Variant Grams
+        'shopify',                       // Variant Inventory Tracker
+        product.quantity,                // Variant Inventory Qty
+        'deny',                          // Variant Inventory Policy
+        'manual',                        // Variant Fulfillment Service
+        product.price,                   // Variant Price
+        '',                              // Variant Compare At Price
+        product.delivery ? 'TRUE' : 'FALSE', // Variant Requires Shipping
+        'TRUE',                          // Variant Taxable
+        '',                              // Variant Barcode
+        firstImage,                      // Image Src
+        firstImage ? '1' : '',           // Image Position
+        product.name,                    // Image Alt Text
+        'FALSE',                         // Gift Card
+        product.name,                    // SEO Title
+        product.description,             // SEO Description
+        '',                              // Google Shopping / Google Product Category
+        '',                              // Google Shopping / Gender
+        '',                              // Google Shopping / Age Group
+        '',                              // Google Shopping / MPN
+        'new',                           // Google Shopping / Condition
+        'TRUE',                          // Google Shopping / Custom Product
+        firstImage,                      // Variant Image
+        'g',                             // Variant Weight Unit
+        '',                              // Variant Tax Code
+        '',                              // Cost per item
+        'TRUE',                          // Included / United States
+        '',                              // Price / United States
+        '',                              // Compare At Price / United States
+        'TRUE',                          // Included / International
+        '',                              // Price / International
+        '',                              // Compare At Price / International
+        'active'                         // Status
+      ].map(field => 
+        typeof field === 'string' && (field.includes(',') || field.includes('"')) 
+          ? `"${field.replace(/"/g, '""')}"` 
+          : field
+      ).join(',');
+    });
+
+    const csvContent = [headers.join(','), ...csvRows].join('\n');
+    
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="shopify-export.csv"');
+    res.send(csvContent);
+  } catch (error) {
+    console.error('Error in Shopify export:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // DELETE /api/admin/users/:userId - Delete a user
 router.delete('/users/:userId', authenticateToken, requireAdmin, async (req, res) => {
   try {

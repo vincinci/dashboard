@@ -80,6 +80,21 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Product limit reached. Maximum 10 products allowed per vendor.' });
     }
 
+    // Validate and sanitize images array
+    let processedImages = null;
+    if (images && Array.isArray(images) && images.length > 0) {
+      // Ensure images is a simple array of strings (URLs)
+      const validImages = images
+        .filter(img => typeof img === 'string' && img.trim().length > 0)
+        .slice(0, 10); // Limit to 10 images max
+      
+      if (validImages.length > 0) {
+        processedImages = JSON.stringify(validImages);
+      }
+    }
+
+    console.log('Creating product with processed images:', processedImages);
+
     // Create product
     const product = await prisma.product.create({
       data: {
@@ -89,7 +104,7 @@ router.post('/', authenticateToken, async (req, res) => {
         description,
         price: parseFloat(price),
         quantity: parseInt(quantity),
-        images: images && images.length > 0 ? JSON.stringify(images) : null,
+        images: processedImages,
         delivery,
         pickup: pickup || null
       }
@@ -104,6 +119,7 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(201).json(responseProduct);
   } catch (error) {
     console.error('Error creating product:', error);
+    console.error('Request body:', req.body);
     res.status(500).json({ error: 'Failed to create product' });
   }
 });
@@ -127,6 +143,21 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Product not found or access denied' });
     }
 
+    // Validate and sanitize images array if provided
+    let processedImages = undefined;
+    if (images !== undefined) {
+      if (images && Array.isArray(images) && images.length > 0) {
+        // Ensure images is a simple array of strings (URLs)
+        const validImages = images
+          .filter(img => typeof img === 'string' && img.trim().length > 0)
+          .slice(0, 10); // Limit to 10 images max
+        
+        processedImages = validImages.length > 0 ? JSON.stringify(validImages) : null;
+      } else {
+        processedImages = null;
+      }
+    }
+
     // Update product
     const updatedProduct = await prisma.product.update({
       where: { id },
@@ -136,7 +167,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         description: description || existingProduct.description,
         price: price !== undefined ? parseFloat(price) : existingProduct.price,
         quantity: quantity !== undefined ? parseInt(quantity) : existingProduct.quantity,
-        images: images !== undefined ? (images && images.length > 0 ? JSON.stringify(images) : null) : existingProduct.images,
+        images: processedImages !== undefined ? processedImages : existingProduct.images,
         delivery: delivery !== undefined ? delivery : existingProduct.delivery,
         pickup: pickup !== undefined ? pickup : existingProduct.pickup
       }
