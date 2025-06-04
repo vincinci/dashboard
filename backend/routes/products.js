@@ -39,7 +39,7 @@ router.get('/', authenticateToken, async (req, res) => {
     // Parse images from comma-separated strings to arrays
     const productsWithParsedImages = products.map(product => ({
       ...product,
-      images: product.images ? product.images.split(',') : []
+      images: product.images && product.images.trim() ? product.images.split(',').map(img => img.trim()) : []
     }));
 
     // Include simple pagination data for frontend compatibility
