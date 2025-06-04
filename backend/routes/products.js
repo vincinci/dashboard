@@ -82,6 +82,8 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Validate and sanitize images array - use comma-separated string instead of JSON
     let processedImages = null;
+    // Temporarily disable images to isolate the issue
+    /*
     if (images && Array.isArray(images) && images.length > 0) {
       // Ensure images is a simple array of strings (URLs)
       const validImages = images
@@ -93,6 +95,7 @@ router.post('/', authenticateToken, async (req, res) => {
         processedImages = validImages.join(',');
       }
     }
+    */
 
     console.log('Creating product with processed images:', processedImages);
 
