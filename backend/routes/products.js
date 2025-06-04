@@ -36,10 +36,10 @@ router.get('/', authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Parse images from JSON strings to arrays
+    // Parse images from comma-separated strings to arrays
     const productsWithParsedImages = products.map(product => ({
       ...product,
-      images: product.images ? JSON.parse(product.images) : []
+      images: product.images ? product.images.split(',') : []
     }));
 
     // Include simple pagination data for frontend compatibility
@@ -80,7 +80,7 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Product limit reached. Maximum 10 products allowed per vendor.' });
     }
 
-    // Validate and sanitize images array
+    // Validate and sanitize images array - use comma-separated string instead of JSON
     let processedImages = null;
     if (images && Array.isArray(images) && images.length > 0) {
       // Ensure images is a simple array of strings (URLs)
@@ -89,7 +89,8 @@ router.post('/', authenticateToken, async (req, res) => {
         .slice(0, 10); // Limit to 10 images max
       
       if (validImages.length > 0) {
-        processedImages = JSON.stringify(validImages);
+        // Store as comma-separated string instead of JSON
+        processedImages = validImages.join(',');
       }
     }
 
@@ -110,10 +111,10 @@ router.post('/', authenticateToken, async (req, res) => {
       }
     });
 
-    // Parse JSON fields back to arrays for response
+    // Parse comma-separated string back to array for response
     const responseProduct = {
       ...product,
-      images: product.images ? JSON.parse(product.images) : []
+      images: product.images ? product.images.split(',') : []
     };
 
     res.status(201).json(responseProduct);
@@ -152,7 +153,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
           .filter(img => typeof img === 'string' && img.trim().length > 0)
           .slice(0, 10); // Limit to 10 images max
         
-        processedImages = validImages.length > 0 ? JSON.stringify(validImages) : null;
+        processedImages = validImages.length > 0 ? validImages.join(',') : null;
       } else {
         processedImages = null;
       }
@@ -173,10 +174,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
       }
     });
 
-    // Parse JSON fields back to arrays for response
+    // Parse comma-separated string back to array for response
     const responseProduct = {
       ...updatedProduct,
-      images: updatedProduct.images ? JSON.parse(updatedProduct.images) : []
+      images: updatedProduct.images ? updatedProduct.images.split(',') : []
     };
 
     res.json(responseProduct);

@@ -204,7 +204,7 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
     const csvRows = products.map(product => {
       const handle = product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       const vendor = product.vendor.businessName || product.vendor.displayName || 'Unknown';
-      const images = product.images ? JSON.parse(product.images) : [];
+      const images = product.images ? product.images.split(',') : [];
       const firstImage = images.length > 0 ? images[0] : '';
       
       return [
