@@ -82,22 +82,35 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Validate and sanitize images array - use comma-separated string instead of JSON
     let processedImages = null;
-    // Temporarily disable images to isolate the issue
-    /*
-    if (images && Array.isArray(images) && images.length > 0) {
-      // Ensure images is a simple array of strings (URLs)
-      const validImages = images
-        .filter(img => typeof img === 'string' && img.trim().length > 0)
-        .slice(0, 10); // Limit to 10 images max
-      
-      if (validImages.length > 0) {
-        // Store as comma-separated string instead of JSON
-        processedImages = validImages.join(',');
+    
+    if (images !== undefined && images !== null) {
+      if (Array.isArray(images)) {
+        // Process array of image URLs
+        const validImages = images
+          .filter(img => img && typeof img === 'string' && img.trim().length > 0)
+          .map(img => img.trim())
+          .slice(0, 10); // Limit to 10 images max
+        
+        processedImages = validImages.length > 0 ? validImages.join(',') : null;
+      } else if (typeof images === 'string' && images.trim().length > 0) {
+        // Handle single image URL passed as string
+        processedImages = images.trim();
       }
+      // If images is empty array, empty string, or invalid type, keep processedImages as null
     }
-    */
 
     console.log('Creating product with processed images:', processedImages);
+    console.log('All product data:', {
+      vendorId,
+      name,
+      category,
+      description,
+      price: parseFloat(price),
+      quantity: parseInt(quantity),
+      images: processedImages,
+      delivery,
+      pickup: pickup || null
+    });
 
     // Create product
     const product = await prisma.product.create({
