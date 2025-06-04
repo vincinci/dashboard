@@ -217,4 +217,38 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// DEBUG endpoint to test image processing
+router.post('/debug-images', authenticateToken, async (req, res) => {
+  try {
+    const { images } = req.body;
+    
+    console.log('Debug - Raw images:', images);
+    console.log('Debug - Images type:', typeof images);
+    console.log('Debug - Is array:', Array.isArray(images));
+    
+    let processedImages = null;
+    if (images && Array.isArray(images) && images.length > 0) {
+      const validImages = images
+        .filter(img => typeof img === 'string' && img.trim().length > 0)
+        .slice(0, 10);
+      
+      if (validImages.length > 0) {
+        processedImages = validImages.join(',');
+      }
+    }
+    
+    console.log('Debug - Processed images:', processedImages);
+    
+    res.json({
+      raw: images,
+      processed: processedImages,
+      type: typeof images,
+      isArray: Array.isArray(images)
+    });
+  } catch (error) {
+    console.error('Debug error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router; 
