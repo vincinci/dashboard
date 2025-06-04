@@ -194,4 +194,26 @@ router.delete('/products/:productId', authenticateToken, requireAdmin, async (re
   }
 });
 
+// GET /api/admin/stats - Get dashboard statistics
+router.get('/stats', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const totalUsers = await prisma.user.count();
+    const totalProducts = await prisma.product.count();
+    const activeUsers = await prisma.user.count({
+      where: { isAdmin: false }
+    });
+
+    const stats = {
+      totalUsers,
+      totalProducts,
+      activeUsers
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router; 

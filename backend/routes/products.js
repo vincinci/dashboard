@@ -42,7 +42,18 @@ router.get('/', authenticateToken, async (req, res) => {
       images: product.images ? JSON.parse(product.images) : []
     }));
 
-    res.json({ products: productsWithParsedImages });
+    // Include simple pagination data for frontend compatibility
+    const response = {
+      products: productsWithParsedImages,
+      pagination: {
+        total: products.length,
+        pages: 1,
+        currentPage: 1,
+        limit: products.length
+      }
+    };
+
+    res.json(response);
   } catch (error) {
     console.error('Error fetching products:', error);
     res.status(500).json({ error: 'Failed to fetch products' });
