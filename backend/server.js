@@ -2,15 +2,12 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
-const { emergencyDatabaseInit } = require('./scripts/emergency-db-init');
 
 const authRouter = require('./routes/auth');
 const productsRouter = require('./routes/products');
 const uploadRouter = require('./routes/upload');
 const adminRouter = require('./routes/admin');
 const healthRouter = require('./routes/health');
-const debugRouter = require('./routes/debug');
-const shopifyRouter = require('./routes/shopify');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -19,45 +16,14 @@ const PORT = process.env.PORT || 3001;
 // Trust proxy for Render deployment
 app.set('trust proxy', 1);
 
-// Auto-initialize database if tables are missing
-async function initializeDatabaseIfNeeded() {
+// Simple database connection check
+async function checkDatabaseConnection() {
   try {
-    console.log('🔍 Checking database tables...');
+    console.log('🔍 Checking database connection...');
     await prisma.user.count();
-    
-    // Check if all required columns exist by testing a product query
-    try {
-      await prisma.product.findFirst({
-        select: {
-          id: true,
-          sizes: true,
-          colors: true,
-          isVerified: true,
-          isApprovedForShopify: true
-        }
-      });
-      console.log('✅ Database schema is up to date');
-    } catch (schemaError) {
-      if (schemaError.code === 'P2022') {
-        console.log('⚠️  Database schema outdated, running migration...');
-        const { migrateProductionDB } = require('./scripts/migrate-production-db');
-        await migrateProductionDB();
-      }
-    }
-    
-    console.log('✅ Database tables exist');
+    console.log('✅ Database connected successfully');
   } catch (error) {
-    if (error.code === 'P2021' && error.message.includes('does not exist')) {
-      console.log('⚠️  Database tables missing, running emergency initialization...');
-      try {
-        await emergencyDatabaseInit();
-        console.log('✅ Database automatically initialized');
-      } catch (initError) {
-        console.error('❌ Auto database initialization failed:', initError);
-      }
-    } else {
-      console.error('⚠️  Database check failed:', error.message);
-    }
+    console.error('⚠️  Database connection issue:', error.message);
   }
 }
 
@@ -91,9 +57,6 @@ app.use(cors({
       origin.includes('vercel.app') // More permissive for all vercel deployments
     );
     
-    // Debug logging
-    console.log('CORS check:', { origin, isVercelURL, nodeEnv: process.env.NODE_ENV });
-    
     if (!origin || origins.includes(origin) || isVercelURL) {
       callback(null, true);
     } else {
@@ -106,7 +69,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Increase body size limits for file uploads (documents, images)
+// Increase body size limits for file uploads
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -122,10 +85,16 @@ app.get('/', (req, res) => {
       auth: '/api/auth',
       products: '/api/products',
       upload: '/api/upload',
-      admin: '/api/admin',
-      debug: '/api/debug',
-      shopify: '/api/shopify'
+      admin: '/api/admin'
     }
+  });
+});
+
+// Simple health check at root
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Ecommerce API is running' 
   });
 });
 
@@ -134,8 +103,6 @@ app.use('/api/auth', authRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/admin', adminRouter);
-app.use('/api/debug', debugRouter);
-app.use('/api/shopify', shopifyRouter);
 
 // Error handling for CORS
 app.use((err, req, res, next) => {
@@ -179,18 +146,16 @@ app.use('*', (req, res) => {
       '/api/auth',
       '/api/products',
       '/api/upload',
-      '/api/admin',
-      '/api/debug',
-      '/api/shopify'
+      '/api/admin'
     ]
   });
 });
 
-// Start the server with database initialization
+// Start the server with database check
 async function startServer() {
   try {
-    // Initialize database if needed
-    await initializeDatabaseIfNeeded();
+    // Check database connection
+    await checkDatabaseConnection();
     
     // Start the server
     app.listen(PORT, () => {
@@ -199,12 +164,8 @@ async function startServer() {
       console.log(`🏥 Health check at http://localhost:${PORT}/api/health`);
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    console.error('Failed to start server:', error);
   }
 }
 
-startServer();
-
-// Export the app
-module.exports = app; 
+startServer(); 
