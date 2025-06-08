@@ -10,7 +10,9 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
     quantity: '',
     delivery: false,
     pickup: '',
-    images: []
+    images: [],
+    sizes: [],
+    colors: []
   });
   
   const [errors, setErrors] = useState({});
@@ -30,8 +32,48 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
     'Other'
   ];
 
+  // Categories that typically have size/color variants
+  const variantCategories = ['Clothing', 'Shoes', 'Accessories'];
+  
+  // Common sizes for different categories
+  const commonSizes = {
+    'Clothing': ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+    'Shoes': ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45'],
+    'Accessories': ['One Size', 'S', 'M', 'L']
+  };
+
+  // Common colors
+  const commonColors = [
+    'Black', 'White', 'Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple', 
+    'Pink', 'Brown', 'Gray', 'Navy', 'Maroon', 'Beige', 'Khaki'
+  ];
+
   useEffect(() => {
     if (product) {
+      // Parse sizes and colors if they exist as JSON strings
+      let parsedSizes = [];
+      let parsedColors = [];
+      
+      try {
+        if (product.sizes && typeof product.sizes === 'string') {
+          parsedSizes = JSON.parse(product.sizes);
+        } else if (Array.isArray(product.sizes)) {
+          parsedSizes = product.sizes;
+        }
+      } catch (e) {
+        console.warn('Failed to parse sizes:', product.sizes);
+      }
+      
+      try {
+        if (product.colors && typeof product.colors === 'string') {
+          parsedColors = JSON.parse(product.colors);
+        } else if (Array.isArray(product.colors)) {
+          parsedColors = product.colors;
+        }
+      } catch (e) {
+        console.warn('Failed to parse colors:', product.colors);
+      }
+      
       setFormData({
         name: product.name || '',
         category: product.category || '',
@@ -40,7 +82,9 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
         quantity: product.quantity?.toString() || '',
         delivery: product.delivery || false,
         pickup: product.pickup || '',
-        images: product.images || []
+        images: product.images || [],
+        sizes: parsedSizes,
+        colors: parsedColors
       });
     }
   }, [product]);
@@ -91,7 +135,9 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
         ...formData,
         price: parseFloat(formData.price),
         quantity: parseInt(formData.quantity),
-        pickup: formData.pickup.trim() || null
+        pickup: formData.pickup.trim() || null,
+        sizes: formData.sizes.length > 0 ? JSON.stringify(formData.sizes) : null,
+        colors: formData.colors.length > 0 ? JSON.stringify(formData.colors) : null
       };
       
       await onSubmit(submitData);
@@ -119,6 +165,28 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
       ...prev,
       images: newImages
     }));
+  };
+
+  const handleSizeToggle = (size) => {
+    setFormData(prev => ({
+      ...prev,
+      sizes: prev.sizes.includes(size) 
+        ? prev.sizes.filter(s => s !== size)
+        : [...prev.sizes, size]
+    }));
+  };
+
+  const handleColorToggle = (color) => {
+    setFormData(prev => ({
+      ...prev,
+      colors: prev.colors.includes(color) 
+        ? prev.colors.filter(c => c !== color)
+        : [...prev.colors, color]
+    }));
+  };
+
+  const shouldShowVariants = () => {
+    return variantCategories.includes(formData.category);
   };
 
   if (isLimitReached && !product) {
@@ -229,7 +297,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
-                Price ($) *
+                Price (RWF) *
               </label>
               <input
                 type="number"
@@ -308,6 +376,65 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
               maxImages={5}
             />
           </div>
+
+          {/* Size and Color Variants */}
+          {shouldShowVariants() && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Available Sizes
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                  {commonSizes[formData.category]?.map(size => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => handleSizeToggle(size)}
+                      className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
+                        formData.sizes.includes(size)
+                          ? 'bg-yellow-600 text-white border-yellow-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+                {formData.sizes.length > 0 && (
+                  <p className="mt-2 text-sm text-gray-600">
+                    Selected: {formData.sizes.join(', ')}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Available Colors
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                  {commonColors.map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => handleColorToggle(color)}
+                      className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
+                        formData.colors.includes(color)
+                          ? 'bg-yellow-600 text-white border-yellow-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {color}
+                    </button>
+                  ))}
+                </div>
+                {formData.colors.length > 0 && (
+                  <p className="mt-2 text-sm text-gray-600">
+                    Selected: {formData.colors.join(', ')}
+                  </p>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
@@ -321,7 +448,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isLimitReached }) => {
           <button
             type="submit"
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-white bg-yellow-600 border border-transparent rounded-lg hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 disabled:opacity-50"
           >
             {loading ? 'Saving...' : (product ? 'Update Product' : 'Add Product')}
           </button>

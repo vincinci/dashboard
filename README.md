@@ -8,6 +8,8 @@ A modern, full-stack vendor dashboard for the Iwanyu e-commerce platform built w
 - **📦 Product Management**: Full CRUD operations for vendor products
 - **🎯 Product Limit Enforcement**: Maximum 10 products per vendor
 - **💰 RWF Currency Support**: Prices displayed in Rwandan Francs
+- **🎨 Product Variants**: Size and color options for Clothing, Shoes, and Accessories
+- **📤 Shopify Export**: CSV export with proper variant formatting
 - **👤 Account Management**: Profile editing and settings
 - **📱 Responsive Design**: Optimized for desktop, tablet, and mobile
 - **🎨 Modern UI**: Clean white/gray + yellow design with flat aesthetics
@@ -95,6 +97,17 @@ npm run dev:frontend # Frontend on :3000
 | PUT | `/api/products/:id` | Update product |
 | DELETE | `/api/products/:id` | Delete product |
 
+### Admin (Admin Authentication Required)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/stats` | Get dashboard statistics |
+| GET | `/api/admin/users` | Get all users |
+| GET | `/api/admin/products` | Get all products |
+| GET | `/api/admin/export` | Export products as CSV |
+| GET | `/api/admin/export-shopify` | Export products in Shopify format with variants |
+| DELETE | `/api/admin/users/:userId` | Delete a user |
+| DELETE | `/api/admin/products/:productId` | Delete a product |
+
 ## 🔒 Authentication Flow
 
 1. **Registration**: Vendors create account with business details
@@ -116,12 +129,15 @@ npm run dev:frontend # Frontend on :3000
 - Image upload support (up to 3)
 - Category selection
 - RWF price input
+- **Size & Color Variants**: Dynamic variant selection for applicable categories
+- **Smart Variant UI**: Category-specific size options and color selection
 - Delivery/pickup options
 - Modal design
 
 ### 🛍️ Product Card Features
 - Product image display
 - RWF price formatting
+- **Variant Display**: Shows available sizes and colors
 - Stock indicators
 - Delivery/pickup badges
 - Edit/delete actions
@@ -139,6 +155,31 @@ The system enforces a strict 10-product limit:
 2. **Frontend Prevention**: Disables add button at limit
 3. **Visual Feedback**: Progress bar and count display
 4. **Error Handling**: Clear limit reached messages
+
+## 🎨 Product Variants System
+
+The platform supports size and color variants for specific product categories:
+
+### 📦 Variant-Enabled Categories
+- **Clothing**: XS, S, M, L, XL, XXL sizes
+- **Shoes**: EU sizes 35-45
+- **Accessories**: One Size, S, M, L
+
+### 🌈 Available Colors
+Black, White, Red, Blue, Green, Yellow, Orange, Purple, Pink, Brown, Gray, Navy, Maroon, Beige, Khaki
+
+### 🔧 How Variants Work
+1. **Dynamic UI**: Variant options appear only for applicable categories
+2. **Multi-Selection**: Users can select multiple sizes and colors
+3. **Data Storage**: Variants stored as JSON strings in database
+4. **Export Compatibility**: Shopify CSV export creates separate rows for each variant combination
+5. **Inventory Distribution**: Product quantity automatically distributed across variants
+
+### 📤 Shopify Export Format
+- Products without variants: Single row with "Default Title"
+- Products with variants: Multiple rows with Size/Color combinations
+- Proper Shopify CSV format with Option1/Option2 fields
+- Variant-specific SKUs and inventory allocation
 
 ## 🌍 Production Deployment
 

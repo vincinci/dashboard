@@ -58,7 +58,7 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const vendorId = req.user.userId;
-    const { name, category, description, price, quantity, images, delivery, pickup } = req.body;
+    const { name, category, description, price, quantity, images, delivery, pickup, sizes, colors } = req.body;
 
     console.log('=== PRODUCT CREATION DEBUG ===');
     console.log('Request body:', req.body);
@@ -99,7 +99,9 @@ router.post('/', authenticateToken, async (req, res) => {
       quantity: parseInt(quantity),
       delivery,
       pickup: pickup || null,
-      images: processedImages  // Store as array directly
+      images: processedImages,  // Store as array directly
+      sizes: sizes || null,     // Store as JSON string
+      colors: colors || null    // Store as JSON string
     };
 
     console.log('Final product data:', productData);
@@ -134,7 +136,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const vendorId = req.user.userId;
-    const { name, category, description, price, quantity, images, delivery, pickup } = req.body;
+    const { name, category, description, price, quantity, images, delivery, pickup, sizes, colors } = req.body;
 
     // Check if product exists and belongs to the user
     const existingProduct = await prisma.product.findFirst({
@@ -171,7 +173,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
         quantity: quantity !== undefined ? parseInt(quantity) : existingProduct.quantity,
         images: processedImages !== undefined ? processedImages : existingProduct.images,
         delivery: delivery !== undefined ? delivery : existingProduct.delivery,
-        pickup: pickup !== undefined ? pickup : existingProduct.pickup
+        pickup: pickup !== undefined ? pickup : existingProduct.pickup,
+        sizes: sizes !== undefined ? sizes : existingProduct.sizes,
+        colors: colors !== undefined ? colors : existingProduct.colors
       }
     });
 

@@ -2,7 +2,7 @@ import React from 'react';
 
 const ProductCard = ({ product, onEdit, onDelete }) => {
   const formatPrice = (price) => {
-    return `$${price.toFixed(2)}`;
+    return `RWF ${price.toLocaleString()}`;
   };
 
   const getStatusColor = (quantity) => {
@@ -16,6 +16,18 @@ const ProductCard = ({ product, onEdit, onDelete }) => {
     if (quantity <= 10) return 'Low Stock';
     return 'In Stock';
   };
+
+  const parseVariants = (variantString) => {
+    if (!variantString) return [];
+    try {
+      return JSON.parse(variantString);
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const sizes = parseVariants(product.sizes);
+  const colors = parseVariants(product.colors);
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-200">
@@ -58,6 +70,46 @@ const ProductCard = ({ product, onEdit, onDelete }) => {
           <p className="text-sm text-gray-700 mb-3 line-clamp-2">
             {product.description}
           </p>
+        )}
+
+        {/* Variants Display */}
+        {(sizes.length > 0 || colors.length > 0) && (
+          <div className="mb-3 space-y-2">
+            {sizes.length > 0 && (
+              <div>
+                <span className="text-xs font-medium text-gray-600">Sizes: </span>
+                <div className="inline-flex flex-wrap gap-1">
+                  {sizes.slice(0, 4).map(size => (
+                    <span key={size} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                      {size}
+                    </span>
+                  ))}
+                  {sizes.length > 4 && (
+                    <span className="px-2 py-1 bg-gray-100 text-gray-500 text-xs rounded">
+                      +{sizes.length - 4} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+            {colors.length > 0 && (
+              <div>
+                <span className="text-xs font-medium text-gray-600">Colors: </span>
+                <div className="inline-flex flex-wrap gap-1">
+                  {colors.slice(0, 4).map(color => (
+                    <span key={color} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                      {color}
+                    </span>
+                  ))}
+                  {colors.length > 4 && (
+                    <span className="px-2 py-1 bg-gray-100 text-gray-500 text-xs rounded">
+                      +{colors.length - 4} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         <div className="flex items-center justify-between mb-3">
