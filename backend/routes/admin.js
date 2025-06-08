@@ -205,26 +205,29 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
 
     // Helper function to validate and fix image URLs
     const validateImageUrl = (url) => {
-      if (!url || typeof url !== 'string') return '';
+      if (!url || typeof url !== 'string') {
+        return `https://via.placeholder.com/400x300/f59e0b/ffffff?text=${encodeURIComponent('No Image')}`;
+      }
       
       // Check if it's a valid URL format
       try {
-        // If it's a relative path, make it absolute
+        // If it's a base64 data URL, Shopify doesn't support it in CSV imports
+        // Convert to placeholder since Shopify needs fetchable URLs
+        if (url.startsWith('data:image/')) {
+          return `https://via.placeholder.com/400x300/f59e0b/ffffff?text=${encodeURIComponent('Product Image')}`;
+        }
+        
+        // If it's a relative path, make it absolute (you'll need to replace with your actual domain)
         if (url.startsWith('/')) {
           return `https://your-domain.com${url}`;
         }
         
-        // Check if it's already a valid URL
+        // Check if it's already a valid HTTP/HTTPS URL
         if (url.startsWith('http://') || url.startsWith('https://')) {
           return url.trim();
         }
         
-        // If it looks like a data URL (base64), keep it
-        if (url.startsWith('data:image/')) {
-          return url;
-        }
-        
-        // If it's just a filename, create a placeholder or CDN URL
+        // If it's just a filename or invalid format, create a placeholder
         if (!url.includes('://')) {
           return `https://via.placeholder.com/400x300/f59e0b/ffffff?text=${encodeURIComponent('Product Image')}`;
         }
@@ -261,7 +264,7 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
       // Process and validate images
       const images = (product.images || [])
         .map(img => validateImageUrl(img))
-        .filter(img => img && img.length > 0)
+        .filter(img => img && img.length > 0 && img.startsWith('http'))
         .slice(0, 10); // Shopify supports up to 250 images, but we'll limit to 10 for performance
       
       // Escape HTML in description and create formatted description
@@ -349,6 +352,7 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
       if (sizes.length === 0 && colors.length === 0) {
         if (images.length === 0) {
           // No images, create single row with placeholder
+          const placeholderImage = `https://via.placeholder.com/400x300/f59e0b/ffffff?text=${encodeURIComponent(product.name)}`;
           csvRows.push(createRow(
             true, // isFirstVariant
             true, // isFirstImage
@@ -357,8 +361,8 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
             'Default Title', // option1Value
             '', // option2Name
             '', // option2Value
-            validateImageUrl(''), // imageUrl (will create placeholder)
-            '', // imagePosition
+            placeholderImage, // imageUrl
+            '1', // imagePosition
             product.quantity // variantQuantity
           ));
         } else {
@@ -399,6 +403,7 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
             
             if (images.length === 0) {
               // No images, create single row for this variant
+              const placeholderImage = `https://via.placeholder.com/400x300/f59e0b/ffffff?text=${encodeURIComponent(product.name)}`;
               csvRows.push(createRow(
                 isFirstVariantOverall, // isFirstVariant
                 true, // isFirstImage
@@ -407,7 +412,7 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
                 option1Value, // option1Value
                 option2Name, // option2Name
                 option2Value, // option2Value
-                validateImageUrl(''), // imageUrl (placeholder)
+                placeholderImage, // imageUrl
                 isFirstVariantOverall ? '1' : '', // imagePosition
                 variantQuantity // variantQuantity
               ));
