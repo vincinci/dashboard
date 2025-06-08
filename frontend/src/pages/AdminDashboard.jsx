@@ -93,7 +93,7 @@ const AdminDashboard = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
       
-      setSuccess('Shopify-compatible CSV exported successfully! Ready to import into Shopify Products section.');
+      setSuccess('🎉 Enhanced Shopify CSV exported successfully! Includes multiple images, vendor details, and full variant support. Ready for direct import into Shopify Products section.');
     } catch (error) {
       setError('Shopify export failed');
     }
@@ -186,7 +186,7 @@ const AdminDashboard = () => {
               <button
                 onClick={handleShopifyExport}
                 className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm flex items-center space-x-1"
-                title="Export Shopify-compatible CSV with all required fields for direct import"
+                title="Export comprehensive Shopify-compatible CSV with multiple images, enhanced vendor info, and full variant support"
               >
                 <span>🛍️</span>
                 <span>Shopify Export</span>

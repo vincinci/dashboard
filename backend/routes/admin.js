@@ -178,7 +178,9 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
         vendor: {
           select: {
             displayName: true,
-            businessName: true
+            businessName: true,
+            email: true,
+            businessAddress: true
           }
         }
       },
@@ -201,13 +203,66 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
       'Price / International', 'Compare At Price / International', 'Status'
     ];
 
+    // Helper function to validate and fix image URLs
+    const validateImageUrl = (url) => {
+      if (!url || typeof url !== 'string') return '';
+      
+      // Check if it's a valid URL format
+      try {
+        // If it's a relative path, make it absolute
+        if (url.startsWith('/')) {
+          return `https://your-domain.com${url}`;
+        }
+        
+        // Check if it's already a valid URL
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+          return url.trim();
+        }
+        
+        // If it looks like a data URL (base64), keep it
+        if (url.startsWith('data:image/')) {
+          return url;
+        }
+        
+        // If it's just a filename, create a placeholder or CDN URL
+        if (!url.includes('://')) {
+          return `https://via.placeholder.com/400x300/f59e0b/ffffff?text=${encodeURIComponent('Product Image')}`;
+        }
+        
+        return url.trim();
+      } catch (e) {
+        console.warn('Invalid image URL:', url);
+        return `https://via.placeholder.com/400x300/f59e0b/ffffff?text=${encodeURIComponent('Product Image')}`;
+      }
+    };
+
+    // Helper function to create enhanced vendor information
+    const createVendorInfo = (vendor) => {
+      const vendorName = vendor.businessName || vendor.displayName || 'Unknown Vendor';
+      const vendorEmail = vendor.email || '';
+      const vendorAddress = vendor.businessAddress || '';
+      
+      return {
+        name: vendorName,
+        tags: [
+          'Dashboard Import',
+          vendorEmail ? `Vendor: ${vendorEmail}` : '',
+          vendorAddress ? `Location: ${vendorAddress.split(',')[0]}` : ''
+        ].filter(Boolean).join(', ')
+      };
+    };
+
     const csvRows = [];
 
     products.forEach((product, productIndex) => {
       const handle = product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      const vendor = product.vendor.businessName || product.vendor.displayName || 'Unknown';
-      const images = product.images || [];
-      const firstImage = images.length > 0 ? images[0] : '';
+      const vendorInfo = createVendorInfo(product.vendor);
+      
+      // Process and validate images
+      const images = (product.images || [])
+        .map(img => validateImageUrl(img))
+        .filter(img => img && img.length > 0)
+        .slice(0, 10); // Shopify supports up to 250 images, but we'll limit to 10 for performance
       
       // Escape HTML in description and create formatted description
       const htmlDescription = `<p>${product.description.replace(/"/g, '&quot;').replace(/\n/g, '</p><p>')}</p>`;
@@ -232,27 +287,27 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
         console.warn('Failed to parse colors for product:', product.id);
       }
 
-      // If no variants, create a single row
-      if (sizes.length === 0 && colors.length === 0) {
-        csvRows.push([
+      // Function to create a CSV row
+      const createRow = (isFirstVariant, isFirstImage, variantSku, option1Name, option1Value, option2Name, option2Value, imageUrl, imagePosition, variantQuantity) => {
+        return [
           handle,                           // Handle
-          product.name,                     // Title
-          htmlDescription,                  // Body (HTML)
-          vendor,                           // Vendor
-          product.category,                 // Product Category
-          product.category,                 // Type
-          'Dashboard Import',               // Tags
-          'TRUE',                          // Published
-          'Title',                         // Option1 Name
-          'Default Title',                 // Option1 Value
-          '',                              // Option2 Name
-          '',                              // Option2 Value
+          isFirstVariant ? product.name : '',  // Title (only on first variant)
+          isFirstVariant ? htmlDescription : '',  // Body (HTML)
+          isFirstVariant ? vendorInfo.name : '',   // Vendor
+          isFirstVariant ? product.category : '',  // Product Category
+          isFirstVariant ? product.category : '',  // Type
+          isFirstVariant ? vendorInfo.tags : '',   // Tags (enhanced with vendor info)
+          isFirstVariant ? 'TRUE' : '',        // Published
+          option1Name,                      // Option1 Name
+          option1Value,                     // Option1 Value
+          option2Name,                      // Option2 Name
+          option2Value,                     // Option2 Value
           '',                              // Option3 Name
           '',                              // Option3 Value
-          product.id.substring(0, 8),      // Variant SKU
+          variantSku,                      // Variant SKU
           '0',                             // Variant Grams
           'shopify',                       // Variant Inventory Tracker
-          product.quantity,                // Variant Inventory Qty
+          variantQuantity,                 // Variant Inventory Qty
           'deny',                          // Variant Inventory Policy
           'manual',                        // Variant Fulfillment Service
           product.price,                   // Variant Price
@@ -260,19 +315,19 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
           product.delivery ? 'TRUE' : 'FALSE', // Variant Requires Shipping
           'TRUE',                          // Variant Taxable
           '',                              // Variant Barcode
-          firstImage,                      // Image Src
-          firstImage ? '1' : '',           // Image Position
-          product.name,                    // Image Alt Text
+          imageUrl,                        // Image Src
+          imagePosition,                   // Image Position
+          isFirstImage ? `${product.name} - Image ${imagePosition}` : '', // Image Alt Text
           'FALSE',                         // Gift Card
-          product.name,                    // SEO Title
-          product.description,             // SEO Description
+          isFirstVariant ? product.name : '', // SEO Title
+          isFirstVariant ? product.description : '', // SEO Description
           '',                              // Google Shopping / Google Product Category
           '',                              // Google Shopping / Gender
           '',                              // Google Shopping / Age Group
           '',                              // Google Shopping / MPN
           'new',                           // Google Shopping / Condition
           'TRUE',                          // Google Shopping / Custom Product
-          firstImage,                      // Variant Image
+          imageUrl,                        // Variant Image
           'g',                             // Variant Weight Unit
           '',                              // Variant Tax Code
           '',                              // Cost per item
@@ -287,13 +342,51 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
           typeof field === 'string' && (field.includes(',') || field.includes('"') || field.includes('\n')) 
             ? `"${field.replace(/"/g, '""')}"` 
             : field
-        ).join(','));
+        ).join(',');
+      };
+
+      // If no variants, create rows for each image
+      if (sizes.length === 0 && colors.length === 0) {
+        if (images.length === 0) {
+          // No images, create single row with placeholder
+          csvRows.push(createRow(
+            true, // isFirstVariant
+            true, // isFirstImage
+            product.id.substring(0, 8), // variantSku
+            'Title', // option1Name
+            'Default Title', // option1Value
+            '', // option2Name
+            '', // option2Value
+            validateImageUrl(''), // imageUrl (will create placeholder)
+            '', // imagePosition
+            product.quantity // variantQuantity
+          ));
+        } else {
+          // Create a row for each image
+          images.forEach((imageUrl, imageIndex) => {
+            const isFirstImage = imageIndex === 0;
+            csvRows.push(createRow(
+              isFirstImage, // isFirstVariant (only first image gets product details)
+              true, // isFirstImage
+              isFirstImage ? product.id.substring(0, 8) : '', // variantSku (only on first)
+              isFirstImage ? 'Title' : '', // option1Name
+              isFirstImage ? 'Default Title' : '', // option1Value
+              '', // option2Name
+              '', // option2Value
+              imageUrl, // imageUrl
+              (imageIndex + 1).toString(), // imagePosition
+              isFirstImage ? product.quantity : '' // variantQuantity (only on first)
+            ));
+          });
+        }
       } else {
-        // Create variants for size/color combinations
+        // Create variants for size/color combinations with images
         const sizeOptions = sizes.length > 0 ? sizes : [''];
         const colorOptions = colors.length > 0 ? colors : [''];
         
         let variantIndex = 0;
+        let isFirstVariantOverall = true;
+        
         sizeOptions.forEach(size => {
           colorOptions.forEach(color => {
             const option1Name = sizes.length > 0 ? 'Size' : (colors.length > 0 ? 'Color' : 'Title');
@@ -302,62 +395,44 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
             const option2Value = sizes.length > 0 && colors.length > 0 ? color : '';
             
             const variantSku = `${product.id.substring(0, 8)}-${variantIndex}`;
-            const isFirstVariant = variantIndex === 0;
+            const variantQuantity = Math.floor(product.quantity / (sizeOptions.length * colorOptions.length));
             
-            csvRows.push([
-              handle,                           // Handle
-              isFirstVariant ? product.name : '',  // Title (only on first variant)
-              isFirstVariant ? htmlDescription : '',  // Body (HTML)
-              isFirstVariant ? vendor : '',        // Vendor
-              isFirstVariant ? product.category : '',  // Product Category
-              isFirstVariant ? product.category : '',  // Type
-              isFirstVariant ? 'Dashboard Import' : '',  // Tags
-              isFirstVariant ? 'TRUE' : '',        // Published
-              option1Name,                      // Option1 Name
-              option1Value,                     // Option1 Value
-              option2Name,                      // Option2 Name
-              option2Value,                     // Option2 Value
-              '',                              // Option3 Name
-              '',                              // Option3 Value
-              variantSku,                      // Variant SKU
-              '0',                             // Variant Grams
-              'shopify',                       // Variant Inventory Tracker
-              Math.floor(product.quantity / (sizeOptions.length * colorOptions.length)), // Split quantity among variants
-              'deny',                          // Variant Inventory Policy
-              'manual',                        // Variant Fulfillment Service
-              product.price,                   // Variant Price
-              '',                              // Variant Compare At Price
-              product.delivery ? 'TRUE' : 'FALSE', // Variant Requires Shipping
-              'TRUE',                          // Variant Taxable
-              '',                              // Variant Barcode
-              isFirstVariant ? firstImage : '', // Image Src (only on first variant)
-              isFirstVariant && firstImage ? '1' : '', // Image Position
-              isFirstVariant ? product.name : '', // Image Alt Text
-              'FALSE',                         // Gift Card
-              isFirstVariant ? product.name : '', // SEO Title
-              isFirstVariant ? product.description : '', // SEO Description
-              '',                              // Google Shopping / Google Product Category
-              '',                              // Google Shopping / Gender
-              '',                              // Google Shopping / Age Group
-              '',                              // Google Shopping / MPN
-              'new',                           // Google Shopping / Condition
-              'TRUE',                          // Google Shopping / Custom Product
-              '',                              // Variant Image
-              'g',                             // Variant Weight Unit
-              '',                              // Variant Tax Code
-              '',                              // Cost per item
-              'TRUE',                          // Included / United States
-              '',                              // Price / United States
-              '',                              // Compare At Price / United States
-              'TRUE',                          // Included / International
-              '',                              // Price / International
-              '',                              // Compare At Price / International
-              'active'                         // Status
-            ].map(field => 
-              typeof field === 'string' && (field.includes(',') || field.includes('"') || field.includes('\n')) 
-                ? `"${field.replace(/"/g, '""')}"` 
-                : field
-            ).join(','));
+            if (images.length === 0) {
+              // No images, create single row for this variant
+              csvRows.push(createRow(
+                isFirstVariantOverall, // isFirstVariant
+                true, // isFirstImage
+                variantSku, // variantSku
+                option1Name, // option1Name
+                option1Value, // option1Value
+                option2Name, // option2Name
+                option2Value, // option2Value
+                validateImageUrl(''), // imageUrl (placeholder)
+                isFirstVariantOverall ? '1' : '', // imagePosition
+                variantQuantity // variantQuantity
+              ));
+              isFirstVariantOverall = false;
+            } else {
+              // Create rows for this variant with each image
+              images.forEach((imageUrl, imageIndex) => {
+                const isFirstImageOfVariant = imageIndex === 0;
+                const isFirstImageOverall = isFirstVariantOverall && isFirstImageOfVariant;
+                
+                csvRows.push(createRow(
+                  isFirstImageOverall, // isFirstVariant (only very first gets product details)
+                  isFirstImageOfVariant, // isFirstImage
+                  isFirstImageOfVariant ? variantSku : '', // variantSku (only on first image of variant)
+                  isFirstImageOfVariant ? option1Name : '', // option1Name
+                  isFirstImageOfVariant ? option1Value : '', // option1Value
+                  isFirstImageOfVariant ? option2Name : '', // option2Name
+                  isFirstImageOfVariant ? option2Value : '', // option2Value
+                  imageUrl, // imageUrl
+                  (imageIndex + 1).toString(), // imagePosition
+                  isFirstImageOfVariant ? variantQuantity : '' // variantQuantity
+                ));
+              });
+              isFirstVariantOverall = false;
+            }
             
             variantIndex++;
           });
