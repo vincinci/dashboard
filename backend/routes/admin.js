@@ -209,6 +209,9 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
       const images = product.images || [];
       const firstImage = images.length > 0 ? images[0] : '';
       
+      // Escape HTML in description and create formatted description
+      const htmlDescription = `<p>${product.description.replace(/"/g, '&quot;').replace(/\n/g, '</p><p>')}</p>`;
+      
       // Parse sizes and colors
       let sizes = [];
       let colors = [];
@@ -234,7 +237,7 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
         csvRows.push([
           handle,                           // Handle
           product.name,                     // Title
-          `<p>${product.description}</p>`,  // Body (HTML)
+          htmlDescription,                  // Body (HTML)
           vendor,                           // Vendor
           product.category,                 // Product Category
           product.category,                 // Type
@@ -281,7 +284,7 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
           '',                              // Compare At Price / International
           'active'                         // Status
         ].map(field => 
-          typeof field === 'string' && (field.includes(',') || field.includes('"')) 
+          typeof field === 'string' && (field.includes(',') || field.includes('"') || field.includes('\n')) 
             ? `"${field.replace(/"/g, '""')}"` 
             : field
         ).join(','));
@@ -304,7 +307,7 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
             csvRows.push([
               handle,                           // Handle
               isFirstVariant ? product.name : '',  // Title (only on first variant)
-              isFirstVariant ? `<p>${product.description}</p>` : '',  // Body (HTML)
+              isFirstVariant ? htmlDescription : '',  // Body (HTML)
               isFirstVariant ? vendor : '',        // Vendor
               isFirstVariant ? product.category : '',  // Product Category
               isFirstVariant ? product.category : '',  // Type
@@ -351,7 +354,7 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
               '',                              // Compare At Price / International
               'active'                         // Status
             ].map(field => 
-              typeof field === 'string' && (field.includes(',') || field.includes('"')) 
+              typeof field === 'string' && (field.includes(',') || field.includes('"') || field.includes('\n')) 
                 ? `"${field.replace(/"/g, '""')}"` 
                 : field
             ).join(','));
@@ -364,8 +367,9 @@ router.get('/export-shopify', authenticateToken, requireAdmin, async (req, res) 
 
     const csvContent = [headers.join(','), ...csvRows].join('\n');
     
+    const timestamp = new Date().toISOString().split('T')[0];
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="shopify-export.csv"');
+    res.setHeader('Content-Disposition', `attachment; filename="shopify-export_${timestamp}.csv"`);
     res.send(csvContent);
   } catch (error) {
     console.error('Error in Shopify export:', error);

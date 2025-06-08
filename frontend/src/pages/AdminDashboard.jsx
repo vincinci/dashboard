@@ -12,6 +12,7 @@ const AdminDashboard = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [showUserDeleteModal, setShowUserDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [showProductDeleteModal, setShowProductDeleteModal] = useState(false);
@@ -52,6 +53,9 @@ const AdminDashboard = () => {
 
   const handleExport = async () => {
     try {
+      setError('');
+      setSuccess('');
+      
       const response = await axios.get(API_CONFIG.getURL('/admin/export'), {
         responseType: 'blob'
       });
@@ -64,8 +68,34 @@ const AdminDashboard = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      
+      setSuccess('Standard CSV export downloaded successfully!');
     } catch (error) {
       setError('Export failed');
+    }
+  };
+
+  const handleShopifyExport = async () => {
+    try {
+      setError('');
+      setSuccess('');
+      
+      const response = await axios.get(API_CONFIG.getURL('/admin/export-shopify'), {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `shopify-export_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      setSuccess('Shopify-compatible CSV exported successfully! Ready to import into Shopify Products section.');
+    } catch (error) {
+      setError('Shopify export failed');
     }
   };
 
@@ -75,8 +105,11 @@ const AdminDashboard = () => {
       setUsers(users.filter(u => u.id !== userId));
       setShowUserDeleteModal(false);
       setUserToDelete(null);
+      setSuccess('User deleted successfully!');
+      setError('');
     } catch (error) {
       setError('Failed to delete user');
+      setSuccess('');
     }
   };
 
@@ -86,10 +119,31 @@ const AdminDashboard = () => {
       setProducts(products.filter(p => p.id !== productId));
       setShowProductDeleteModal(false);
       setProductToDelete(null);
+      setSuccess('Product deleted successfully!');
+      setError('');
     } catch (error) {
       setError('Failed to delete product');
+      setSuccess('');
     }
   };
+
+  // Clear messages when switching tabs
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setError('');
+    setSuccess('');
+  };
+
+  // Auto-clear messages after 5 seconds
+  useEffect(() => {
+    if (error || success) {
+      const timer = setTimeout(() => {
+        setError('');
+        setSuccess('');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, success]);
 
   if (!user?.isAdmin) {
     return (
@@ -123,9 +177,19 @@ const AdminDashboard = () => {
             <div className="flex space-x-2">
               <button
                 onClick={handleExport}
-                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center space-x-1"
+                title="Export basic product data as CSV"
               >
-                Export
+                <span>📊</span>
+                <span>Export CSV</span>
+              </button>
+              <button
+                onClick={handleShopifyExport}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm flex items-center space-x-1"
+                title="Export Shopify-compatible CSV with all required fields for direct import"
+              >
+                <span>🛍️</span>
+                <span>Shopify Export</span>
               </button>
               <button
                 onClick={logout}
@@ -146,6 +210,14 @@ const AdminDashboard = () => {
         </div>
       )}
 
+      {success && (
+        <div className="max-w-7xl mx-auto px-4 py-2">
+          <div className="bg-green-50 text-green-700 px-3 py-2 rounded text-sm">
+            {success}
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="border-b">
@@ -157,7 +229,7 @@ const AdminDashboard = () => {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`py-2 px-1 border-b-2 text-sm font-medium ${
                   activeTab === tab.id
                     ? 'border-yellow-500 text-yellow-600'
